@@ -40,28 +40,50 @@ function showToast(message, type) {
 /* ===================== モーダル ===================== */
 function openModal(innerHtml, opts) {
   opts = opts || {};
-  closeModal();
+  const root = document.getElementById('modalRoot');
+  if (!opts.stack) closeModal(true);
+  else {
+    const current = document.getElementById('activeModalOverlay');
+    if (current) {
+      current.removeAttribute('id');
+      current.classList.add('modal-overlay--background');
+      current.setAttribute('aria-hidden', 'true');
+    }
+  }
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.id = 'activeModalOverlay';
   const modalClass = 'modal' + (opts.wide ? ' modal--wide' : '') + (opts.narrow ? ' modal--narrow' : '');
   overlay.innerHTML = `<div class="${modalClass}">${innerHtml}</div>`;
   overlay.addEventListener('mousedown', (e) => { if (e.target === overlay) closeModal(); });
-  document.getElementById('modalRoot').appendChild(overlay);
+  $all('button', overlay).forEach((button) => { if (!button.hasAttribute('type')) button.type = 'button'; });
+  root.appendChild(overlay);
   document.addEventListener('keydown', modalEscHandler);
   return overlay;
 }
 function modalEscHandler(e) { if (e.key === 'Escape') closeModal(); }
-function closeModal() {
+function closeModal(all) {
   const root = document.getElementById('modalRoot');
-  if (root) root.innerHTML = '';
-  document.removeEventListener('keydown', modalEscHandler);
+  if (!root) return;
+  if (all) root.innerHTML = '';
+  else {
+    const current = document.getElementById('activeModalOverlay');
+    if (current) current.remove();
+    const previous = root.lastElementChild;
+    if (previous) {
+      previous.id = 'activeModalOverlay';
+      previous.classList.remove('modal-overlay--background');
+      previous.removeAttribute('aria-hidden');
+      previous.dispatchEvent(new Event('modalrestored'));
+    }
+  }
+  if (!root.children.length) document.removeEventListener('keydown', modalEscHandler);
 }
 
 function closeMoreSheet() { const root=$('#sheetRoot'); if(root) root.innerHTML=''; }
 function openMoreSheet() {
   const root=$('#sheetRoot'); if(!root)return;
-  root.innerHTML=`<div class="sheet-overlay" data-action="close-more-sheet"><div class="more-sheet" role="dialog" aria-label="その他のメニュー"><div class="sheet-handle"></div><h2>その他</h2><button data-action="open-more-gallery">${ICONS.image}<span>作品ギャラリー</span></button><button data-action="open-more-settings"><span class="sheet-icon">⚙</span><span>設定</span></button><button data-action="restart-tour"><span class="sheet-icon">?</span><span>使い方ツアー</span></button></div></div>`;
+  root.innerHTML=`<div class="sheet-overlay" data-action="close-more-sheet"><div class="more-sheet" role="dialog" aria-label="その他のメニュー"><div class="sheet-handle"></div><h2>その他</h2><button type="button" data-action="open-more-gallery">${ICONS.image}<span>作品ギャラリー</span></button><button type="button" data-action="open-more-settings"><span class="sheet-icon">⚙</span><span>設定</span></button><button type="button" data-action="restart-tour"><span class="sheet-icon">?</span><span>使い方ツアー</span></button></div></div>`;
 }
 function currentDetailProjectId(overlayEl) {
   return overlayEl ? overlayEl.dataset.projectId : null;
@@ -80,7 +102,7 @@ async function hydrateImages(root) {
 
 async function openImageLightbox(imageId) {
   const overlay = openModal(`
-    <div class="modal__header"><h2 class="modal__title">画像</h2><button class="icon-btn" data-action="close-modal">${ICONS.close}</button></div>
+    <div class="modal__header"><h2 class="modal__title">画像</h2><button type="button" class="icon-btn" data-action="close-modal">${ICONS.close}</button></div>
     <div class="modal__body"><img id="lightbox-img" style="width:100%; border-radius:8px; display:block;" alt=""></div>
   `, { wide: true });
   const url = await imageUrl(imageId);
@@ -95,7 +117,7 @@ function emptyStateHtml(icon, title, desc, action, actionLabel) {
     <div class="empty-state__icon">${ICONS[icon] || ''}</div>
     <h3 style="margin-bottom:8px;">${escapeHtml(title)}</h3>
     <p>${escapeHtml(desc)}</p>
-    ${action ? `<button class="btn btn--primary" data-action="${action}">${ICONS.plus}${escapeHtml(actionLabel)}</button>` : ''}
+    ${action ? `<button type="button" class="btn btn--primary" data-action="${action}">${ICONS.plus}${escapeHtml(actionLabel)}</button>` : ''}
   </div>`;
 }
 
@@ -148,6 +170,27 @@ function statusBadgeHtml(p) {
   return `<span class="badge badge--progress">進行中</span>`;
 }
 
+function stepStartDate(step) { return step.startDate || step.dueDate || ''; }
+function stepIncludesDate(step, dateStr) {
+  const start = stepStartDate(step);
+  return !!(start && step.dueDate && diffDays(dateStr, start) >= 0 && diffDays(step.dueDate, dateStr) >= 0);
+}
+function stepPeriodLabel(step, withYear) {
+  const start = stepStartDate(step); const end = step.dueDate || start;
+  if (!start) return '';
+  if (start === end) return formatJP(end, { withYear:!!withYear });
+  return `${formatJP(start, { withYear:!!withYear })}〜${formatJP(end, { withYear:!!withYear })}`;
+}
+function projectStepsForDate(dateStr, includeOverdue) {
+  const items = [];
+  state.projects.forEach((project) => (project.steps || []).forEach((step) => {
+    if (step.done || !step.dueDate) return;
+    const overdue = diffDays(step.dueDate, dateStr) < 0;
+    if (stepIncludesDate(step, dateStr) || (includeOverdue && overdue)) items.push({ project, step, overdue });
+  }));
+  return items.sort((a, b) => Number(b.overdue) - Number(a.overdue) || diffDays(a.step.dueDate, b.step.dueDate));
+}
+
 /* ===================== タブ切替 ===================== */
 let currentTab = 'home';
 let projectsViewMode = 'list';
@@ -180,7 +223,11 @@ function calendarEvents() {
   state.projects.forEach((project) => {
     (project.steps || []).forEach((step) => {
       if (!step.dueDate) return;
-      events.push({ date:step.dueDate, project, step, type:'step', title:step.name, done:!!step.done });
+      const start = stepStartDate(step) || step.dueDate;
+      const span = Math.max(0, diffDays(step.dueDate, start));
+      for (let day = 0; day <= span; day += 1) {
+        events.push({ date:addDays(start, day), project, step, type:'step', title:step.name, done:!!step.done });
+      }
     });
     if (project.dueDate) events.push({ date:project.dueDate, project, step:null, type:'deadline', title:`◆納品 ${project.title}`, done:project.status === 'done' });
   });
@@ -190,8 +237,9 @@ function calendarEvents() {
 function calendarEventsOn(dateStr, events) { return events.filter((event) => event.date === dateStr); }
 
 function calendarChipHtml(event) {
-  const overdue = event.type === 'step' && !event.done && diffDays(event.date, todayStr()) < 0;
-  return `<button type="button" class="calendar-chip ${event.done ? 'is-done' : ''} ${event.type === 'deadline' ? 'is-deadline' : ''} ${overdue ? 'is-overdue' : ''}" style="--event-color:${event.project.color};--event-text:${colorText(event.project.color)}" data-action="open-project" data-project-id="${escapeHtml(event.project.id)}" title="${escapeHtml(event.title)}・${escapeHtml(event.project.title)}"><span>${escapeHtml(event.title)}</span></button>`;
+  const overdue = event.type === 'step' && !event.done && diffDays(event.step.dueDate, todayStr()) < 0;
+  const period = event.step ? `（${stepPeriodLabel(event.step)}）` : '';
+  return `<button type="button" class="calendar-chip ${event.done ? 'is-done' : ''} ${event.type === 'deadline' ? 'is-deadline' : ''} ${overdue ? 'is-overdue' : ''}" style="--event-color:${event.project.color};--event-text:${colorText(event.project.color)}" data-action="open-project" data-project-id="${escapeHtml(event.project.id)}" title="${escapeHtml(event.title)} ${escapeHtml(period)}・${escapeHtml(event.project.title)}"><span>${escapeHtml(event.title)}</span></button>`;
 }
 
 function calendarDateNumberHtml(dateStr, className) {
@@ -201,6 +249,7 @@ function calendarDateNumberHtml(dateStr, className) {
 
 function calendarPeriodTitle(view, anchor) {
   const date = parseDateStr(anchor);
+  if (view === 'today') return formatJP(anchor, { withYear:true, withWeekday:true });
   if (view === 'week') {
     const start = addDays(anchor, -date.getDay()); const end = addDays(start, 6);
     const startDate = parseDateStr(start); const endDate = parseDateStr(end);
@@ -213,8 +262,10 @@ function calendarPeriodTitle(view, anchor) {
 }
 
 function calendarToolbarHtml(view, anchor, mobile) {
-  const anchorDate=parseDateStr(anchor); const title=mobile?`${anchorDate.getFullYear()}年${anchorDate.getMonth()+1}月`:calendarPeriodTitle(view,anchor);
-  return `<div class="calendar-toolbar"><div class="calendar-toolbar__left"><button class="btn calendar-today-btn" data-action="calendar-today">今日</button><button class="icon-btn" data-action="calendar-prev" aria-label="前の期間">${arrowLeftSvg()}</button><button class="icon-btn" data-action="calendar-next" aria-label="次の期間">${arrowRightSvg()}</button><h1 class="calendar-period-title">${escapeHtml(title)}</h1></div><select class="select calendar-view-select" id="calendarViewSelect" aria-label="カレンダー表示"><option value="month" ${view === 'month' ? 'selected' : ''}>月</option><option value="week" ${view === 'week' ? 'selected' : ''}>週</option><option value="schedule" ${view === 'schedule' ? 'selected' : ''}>スケジュール</option></select><div class="calendar-mobile-segment" role="group" aria-label="カレンダー表示">${[['month','月'],['week','週'],['schedule','予定']].map(([value,label])=>`<button class="${view===value?'is-active':''}" data-action="calendar-set-view" data-view="${value}">${label}</button>`).join('')}</div></div>`;
+  const anchorDate=parseDateStr(anchor); const title=mobile&&view!=='today'?`${anchorDate.getFullYear()}年${anchorDate.getMonth()+1}月`:calendarPeriodTitle(view,anchor);
+  const views=[['today','今日'],['month','月'],['week','週'],['schedule','予定']];
+  const navigation=view==='today'?'':`<button type="button" class="icon-btn" data-action="calendar-prev" aria-label="前の期間">${arrowLeftSvg()}</button><button type="button" class="icon-btn" data-action="calendar-next" aria-label="次の期間">${arrowRightSvg()}</button>`;
+  return `<div class="calendar-toolbar"><div class="calendar-toolbar__left"><button type="button" class="btn calendar-today-btn" data-action="calendar-today">今日</button>${navigation}<h1 class="calendar-period-title">${escapeHtml(title)}</h1></div><select class="select calendar-view-select" id="calendarViewSelect" aria-label="カレンダー表示">${views.map(([value,label])=>`<option value="${value}" ${view===value?'selected':''}>${label}</option>`).join('')}</select><div class="calendar-mobile-segment" role="group" aria-label="カレンダー表示">${views.map(([value,label])=>`<button type="button" class="${view===value?'is-active':''}" data-action="calendar-set-view" data-view="${value}">${label}</button>`).join('')}</div></div>`;
 }
 
 function calendarMobileMarks(events) {
@@ -230,7 +281,7 @@ function calendarMonthHtml(anchor, events, mobile) {
   return `<div class="calendar-month"><div class="calendar-weekdays">${CALENDAR_WEEKDAYS.map((day) => `<div>${day}</div>`).join('')}</div><div class="calendar-month-grid">${cells.map((dateStr) => {
     const cellEvents = calendarEventsOn(dateStr, events); const visible = cellEvents.slice(0, 3); const hidden = cellEvents.length - visible.length;
     const outside = parseDateStr(dateStr).getMonth() !== date.getMonth();
-    return `<div class="calendar-month-cell ${outside ? 'is-outside' : ''}" data-date="${dateStr}" ${mobile?`data-action="calendar-open-day"`:''}><div class="calendar-month-cell__date">${calendarDateNumberHtml(dateStr)}</div>${mobile?calendarMobileMarks(cellEvents):`<div class="calendar-cell-events">${visible.map(calendarChipHtml).join('')}${hidden > 0 ? `<button class="calendar-more" data-action="calendar-show-day" data-date="${dateStr}">他${hidden}件</button>` : ''}</div>`}</div>`;
+    return `<div class="calendar-month-cell ${outside ? 'is-outside' : ''}" data-date="${dateStr}" ${mobile?`data-action="calendar-open-day"`:''}><div class="calendar-month-cell__date">${calendarDateNumberHtml(dateStr)}</div>${mobile?calendarMobileMarks(cellEvents):`<div class="calendar-cell-events">${visible.map(calendarChipHtml).join('')}${hidden > 0 ? `<button type="button" class="calendar-more" data-action="calendar-show-day" data-date="${dateStr}">他${hidden}件</button>` : ''}</div>`}</div>`;
   }).join('')}</div></div>`;
 }
 
@@ -240,9 +291,23 @@ function calendarWeekHtml(anchor, events, mobile) {
   return `<div class="calendar-week"><div class="calendar-week-grid">${days.map((dateStr, i) => {const dayEvents=calendarEventsOn(dateStr,events);return `<div class="calendar-week-column" ${mobile?`data-action="calendar-open-day" data-date="${dateStr}"`:''}><div class="calendar-week-header"><span>${CALENDAR_WEEKDAYS[i]}${mobile?'':'曜日'}</span>${calendarDateNumberHtml(dateStr, 'calendar-week-number')}</div><div class="calendar-week-events">${mobile?calendarMobileMarks(dayEvents):(dayEvents.map(calendarChipHtml).join('') || '<span class="calendar-no-events">予定なし</span>')}</div></div>`;}).join('')}</div></div>`;
 }
 
+function calendarTodayHtml(anchor) {
+  const items = projectStepsForDate(anchor, true);
+  if (!items.length) return `<div class="calendar-empty">今日の予定はありません</div>`;
+  return `<div class="calendar-today-list">${items.map(({ project, step, overdue }) => `
+    <div class="calendar-today-item ${overdue ? 'is-overdue' : ''}" style="--task-color:${project.color}">
+      <button type="button" class="checkbox" data-action="toggle-calendar-step" data-project-id="${escapeHtml(project.id)}" data-step-id="${escapeHtml(step.id)}" aria-label="完了にする"></button>
+      <span class="project-color-dot" style="background:${project.color}"></span>
+      <button type="button" class="calendar-today-link" data-action="open-project" data-project-id="${escapeHtml(project.id)}">
+        <strong>${escapeHtml(step.name)}</strong><span>${escapeHtml(project.title)}</span><small>${escapeHtml(stepPeriodLabel(step))}</small>
+      </button>
+      ${overdue ? `<em>${Math.abs(diffDays(step.dueDate, anchor))}日超過</em>` : ''}
+    </div>`).join('')}</div>`;
+}
+
 function calendarScheduleHtml(anchor, events) {
   const end = addDays(anchor, 29);
-  const overdue = events.filter((event) => event.type === 'step' && !event.done && diffDays(event.date, anchor) < 0);
+  const overdue = events.filter((event) => event.type === 'step' && !event.done && event.date === event.step.dueDate && diffDays(event.step.dueDate, anchor) < 0);
   const ranged = events.filter((event) => diffDays(event.date, anchor) >= 0 && diffDays(event.date, end) <= 0);
   const visible = [...overdue, ...ranged];
   const dates = Array.from(new Set(visible.map((event) => event.date))).sort((a, b) => diffDays(a, b));
@@ -252,7 +317,8 @@ function calendarScheduleHtml(anchor, events) {
     return `<section class="calendar-schedule-day"><div class="calendar-schedule-date">${calendarDateNumberHtml(dateStr, 'calendar-schedule-number')}<span>${date.getMonth()+1}月 ${CALENDAR_WEEKDAYS[date.getDay()]}曜日</span></div><div class="calendar-schedule-tasks">${items.map((event) => {
       const overdueClass = event.type === 'step' && !event.done && diffDays(event.date, todayStr()) < 0 ? ' is-overdue' : '';
       const progress=projectProgress(event.project); const dueDiff=event.project.dueDate?diffDays(event.project.dueDate,todayStr()):null; const dueLabel=dueDiff===null?'':dueDiff<0?`${Math.abs(dueDiff)}日超過`:dueDiff===0?'納期は今日':`納期まで残り${dueDiff}日`;
-      return `<div class="calendar-schedule-task${overdueClass}" style="--task-color:${event.project.color}">${event.type === 'step' ? `<button class="checkbox ${event.done ? 'is-checked' : ''}" data-action="toggle-calendar-step" data-project-id="${escapeHtml(event.project.id)}" data-step-id="${escapeHtml(event.step.id)}" aria-label="${event.done ? '未完了に戻す' : '完了にする'}">${event.done ? ICONS.check : ''}</button>` : '<span class="calendar-deadline-mark">◆</span>'}<span class="project-color-dot" style="background:${event.project.color}"></span><button class="calendar-task-link" data-action="open-project" data-project-id="${escapeHtml(event.project.id)}"><span class="calendar-task-copy"><strong>${escapeHtml(event.type === 'deadline' ? '納品' : event.title)}</strong><span>${escapeHtml(event.project.title)}</span></span><span class="calendar-task-progress"><span><i style="width:${progress}%"></i></span><small>${progress}%</small></span><em class="calendar-task-due ${dueDiff!==null&&dueDiff<0?'is-overdue':''}">${escapeHtml(dueLabel)}</em></button></div>`;
+      const periodLabel=event.step?stepPeriodLabel(event.step):'';
+      return `<div class="calendar-schedule-task${overdueClass}" style="--task-color:${event.project.color}">${event.type === 'step' ? `<button type="button" class="checkbox ${event.done ? 'is-checked' : ''}" data-action="toggle-calendar-step" data-project-id="${escapeHtml(event.project.id)}" data-step-id="${escapeHtml(event.step.id)}" aria-label="${event.done ? '未完了に戻す' : '完了にする'}">${event.done ? ICONS.check : ''}</button>` : '<span class="calendar-deadline-mark">◆</span>'}<span class="project-color-dot" style="background:${event.project.color}"></span><button type="button" class="calendar-task-link" data-action="open-project" data-project-id="${escapeHtml(event.project.id)}"><span class="calendar-task-copy"><strong>${escapeHtml(event.type === 'deadline' ? '納品' : event.title)}</strong><span>${escapeHtml(event.project.title)}${periodLabel?` ・ ${escapeHtml(periodLabel)}`:''}</span></span><span class="calendar-task-progress"><span><i style="width:${progress}%"></i></span><small>${progress}%</small></span><em class="calendar-task-due ${dueDiff!==null&&dueDiff<0?'is-overdue':''}">${escapeHtml(dueLabel)}</em></button></div>`;
     }).join('')}</div></section>`;
   }).join('')}</div>`;
 }
@@ -260,17 +326,17 @@ function calendarScheduleHtml(anchor, events) {
 function renderCalendar() {
   const container = $('#calendarContent'); if (!container) return;
   const view = state.settings.calendarView || 'month';
-  const anchor = state.settings.calendarDate || todayStr();
+  const anchor = view === 'today' ? todayStr() : (state.settings.calendarDate || todayStr());
   const events = calendarEvents();
   const mobile=window.matchMedia('(max-width: 767px)').matches;
-  let content = view === 'week' ? calendarWeekHtml(anchor, events, mobile) : view === 'schedule' ? calendarScheduleHtml(anchor, events) : calendarMonthHtml(anchor, events, mobile);
+  let content = view === 'today' ? calendarTodayHtml(anchor) : view === 'week' ? calendarWeekHtml(anchor, events, mobile) : view === 'schedule' ? calendarScheduleHtml(anchor, events) : calendarMonthHtml(anchor, events, mobile);
   container.innerHTML = `${calendarToolbarHtml(view, anchor, mobile)}${content}`;
   $('#calendarViewSelect', container).addEventListener('change', (e) => { state.settings.calendarView = e.target.value; saveState(); renderCalendar(); });
 }
 
 function openCalendarDaySheet(dateStr) {
   const root=$('#sheetRoot'); if(!root)return; const events=calendarEventsOn(dateStr,calendarEvents());
-  root.innerHTML=`<div class="sheet-overlay calendar-day-overlay" data-action="close-more-sheet"><section class="calendar-day-sheet" role="dialog" aria-label="${escapeHtml(formatJP(dateStr,{withYear:true,withWeekday:true}))}の予定"><div class="sheet-handle"></div><div class="calendar-day-sheet__head"><div><span>${escapeHtml(formatJP(dateStr,{withYear:true,withWeekday:true}))}</span><h2>この日の予定</h2></div><button class="icon-btn" data-action="close-calendar-day">${ICONS.close}</button></div><div class="calendar-day-sheet__list">${events.length?events.map((event)=>`<div class="calendar-day-item">${event.type==='step'?`<button class="checkbox ${event.done?'is-checked':''}" data-action="toggle-calendar-sheet-step" data-project-id="${escapeHtml(event.project.id)}" data-step-id="${escapeHtml(event.step.id)}" data-date="${dateStr}" aria-label="${event.done?'未完了に戻す':'完了にする'}">${event.done?ICONS.check:''}</button>`:'<span class="calendar-deadline-mark">◆</span>'}<span class="project-color-dot" style="background:${event.project.color}"></span><button data-action="calendar-sheet-project" data-project-id="${escapeHtml(event.project.id)}"><strong>${escapeHtml(event.type==='deadline'?'納品':event.title)}</strong><span>${escapeHtml(event.project.title)}</span></button></div>`).join(''):'<div class="home-empty-line">予定はありません。</div>'}</div></section></div>`;
+  root.innerHTML=`<div class="sheet-overlay calendar-day-overlay" data-action="close-more-sheet"><section class="calendar-day-sheet" role="dialog" aria-label="${escapeHtml(formatJP(dateStr,{withYear:true,withWeekday:true}))}の予定"><div class="sheet-handle"></div><div class="calendar-day-sheet__head"><div><span>${escapeHtml(formatJP(dateStr,{withYear:true,withWeekday:true}))}</span><h2>この日の予定</h2></div><button type="button" class="icon-btn" data-action="close-calendar-day">${ICONS.close}</button></div><div class="calendar-day-sheet__list">${events.length?events.map((event)=>`<div class="calendar-day-item">${event.type==='step'?`<button type="button" class="checkbox ${event.done?'is-checked':''}" data-action="toggle-calendar-sheet-step" data-project-id="${escapeHtml(event.project.id)}" data-step-id="${escapeHtml(event.step.id)}" data-date="${dateStr}" aria-label="${event.done?'未完了に戻す':'完了にする'}">${event.done?ICONS.check:''}</button>`:'<span class="calendar-deadline-mark">◆</span>'}<span class="project-color-dot" style="background:${event.project.color}"></span><button type="button" data-action="calendar-sheet-project" data-project-id="${escapeHtml(event.project.id)}"><strong>${escapeHtml(event.type==='deadline'?'納品':event.title)}</strong><span>${escapeHtml(event.project.title)}${event.step?` ・ ${escapeHtml(stepPeriodLabel(event.step))}`:''}</span></button></div>`).join(''):'<div class="home-empty-line">予定はありません。</div>'}</div></section></div>`;
 }
 
 /* ===================== ホーム ===================== */
@@ -286,45 +352,51 @@ function renderHome() {
   const weekStart = addDays(todayS, -mondayOffset);
   const weekEnd = addDays(weekStart, 6);
   const weekSteps = [];
-  const upcoming = [];
+  const todayItems = [];
   projects.forEach((p) => {
     (p.steps || []).forEach((s) => {
-      if (s.dueDate && diffDays(s.dueDate, weekStart) >= 0 && diffDays(s.dueDate, weekEnd) <= 0) weekSteps.push({ project:p, step:s });
+      const startsBeforeWeekEnds = stepStartDate(s) && diffDays(stepStartDate(s), weekEnd) <= 0;
+      const endsAfterWeekStarts = s.dueDate && diffDays(s.dueDate, weekStart) >= 0;
+      if (startsBeforeWeekEnds && endsAfterWeekStarts) weekSteps.push({ project:p, step:s });
       if (s.done) return;
       const d = diffDays(s.dueDate, todayS);
-      upcoming.push({ project:p, step:s, diff:d });
+      if (stepIncludesDate(s, todayS) || d < 0) todayItems.push({ project:p, step:s, diff:d });
     });
   });
-  upcoming.sort((a, b) => diffDays(a.step.dueDate, b.step.dueDate));
-  const nextFive = upcoming.slice(0, 5);
+  todayItems.sort((a, b) => diffDays(a.step.dueDate, b.step.dueDate));
+  const nextFive = todayItems.slice(0, 5);
   const todoHtml = nextFive.length ? nextFive.map((u) => {
     const overdue = u.diff < 0;
-    const overdueText = overdue ? `${Math.abs(u.diff)}日超過` : formatJP(u.step.dueDate, { withWeekday: true });
+    const overdueText = overdue ? `${Math.abs(u.diff)}日超過` : stepPeriodLabel(u.step);
     return `
     <div class="todo-item ${overdue ? 'is-overdue' : ''}">
       <span class="project-color-dot" style="background:${u.project.color}"></span>
-      <button class="checkbox" data-action="toggle-step" data-project-id="${u.project.id}" data-step-id="${u.step.id}" aria-label="完了にする"></button>
+      <button type="button" class="checkbox" data-action="toggle-step" data-project-id="${u.project.id}" data-step-id="${u.step.id}" aria-label="完了にする"></button>
       <div class="todo-item__body">
         <div class="todo-item__title">${escapeHtml(u.step.name)}</div>
         <div class="todo-item__meta">${escapeHtml(u.project.title)}${u.project.clientName ? ' ・ ' + escapeHtml(u.project.clientName) : ''}</div>
       </div>
       <div class="todo-item__due">${overdueText}</div>
     </div>`;
-  }).join('') : `<div class="home-empty-line">今日から先の工程はありません。</div>`;
+  }).join('') : `<div class="home-empty-line">今日の予定はありません。</div>`;
   const weekDone = weekSteps.filter((item) => item.step.done).length;
   const weekPercent = weekSteps.length ? Math.round(weekDone / weekSteps.length * 100) : 0;
   const deadlineAlerts = projects.filter((p) => p.status !== 'done' && p.dueDate && diffDays(p.dueDate, todayS) <= 3).sort((a,b) => diffDays(a.dueDate,b.dueDate));
   const alertHtml = deadlineAlerts.length ? deadlineAlerts.map((p) => {
     const days = diffDays(p.dueDate, todayS); const overdue = days < 0;
     const label = overdue ? `${Math.abs(days)}日超過` : days === 0 ? '納期は今日' : `納期まで${days}日`;
-    return `<button class="deadline-alert ${overdue ? 'is-overdue' : 'is-near'}" data-action="open-project" data-project-id="${escapeHtml(p.id)}"><span class="deadline-alert__icon" aria-hidden="true">⚠</span><span><strong>${label}</strong> ${escapeHtml(p.title)}</span><time>${formatJP(p.dueDate, { withWeekday:true })}</time></button>`;
+    return `<button type="button" class="deadline-alert ${overdue ? 'is-overdue' : 'is-near'}" data-action="open-project" data-project-id="${escapeHtml(p.id)}"><span class="deadline-alert__icon" aria-hidden="true">⚠</span><span><strong>${label}</strong> ${escapeHtml(p.title)}</span><time>${formatJP(p.dueDate, { withWeekday:true })}</time></button>`;
   }).join('') : `<div class="home-empty-line">3日以内の納期アラートはありません。</div>`;
   const unpaidProjects = projects.filter((p) => p.paymentStatus !== 'paid');
   const unbilledTotal = unpaidProjects.reduce((sum, p) => sum + (p.fee || 0), 0);
   const unbilledCount = projects.filter((p) => p.paymentStatus === 'unbilled').length;
   const thisMonthTotal = projects.filter((p) => p.deliveredDate && parseDateStr(p.deliveredDate).getFullYear() === now.getFullYear() && parseDateStr(p.deliveredDate).getMonth() === now.getMonth()).reduce((s,p) => s+(p.fee||0),0);
   const monthExpenses = state.expenses.filter((e) => e.date && parseDateStr(e.date).getFullYear() === now.getFullYear() && parseDateStr(e.date).getMonth() === now.getMonth()).length;
-  const todayTasks=upcoming.filter((item)=>item.diff===0).length;
+  const todayTasks=todayItems.length;
+  const hasUserData = state.projects.length || state.clients.length || state.expenses.length || state.invoices.length || state.quotes.length || state.galleryExtras.length;
+  const backupDays = state.settings.lastBackupAt ? diffDays(todayS, state.settings.lastBackupAt) : null;
+  const showBackupReminder = hasUserData && (backupDays === null || backupDays >= 7);
+  const backupReminder = showBackupReminder ? `<button type="button" class="backup-reminder-chip" data-action="open-backup-settings">${backupDays === null ? 'まだバックアップがありません。' : `前回のバックアップから ${backupDays}日経っています。`} 設定→バックアップから保存しましょう</button>` : '';
   const seed=Number(todayS.replace(/-/g,''));
   const encouragements=['今日も一日がんばりましょう','無理しないでくださいね','休憩も仕事のうちです','小さな一歩を積み重ねましょう','焦らず、あなたのペースで進めましょう','できたことにも目を向けてみましょう','ひとつずつ片づければ大丈夫です','今日のひらめきを大切にしましょう','深呼吸して、肩の力を抜きましょう','完璧より、前に進むことを大切に','自分の作品を信じて進みましょう','今日も創作を楽しめますように'];
   const healthTips=['目の疲れには20-20-20ルール。20分ごとに20秒、遠くを見ましょう','疲労回復にはビタミンB1を含む豚肉や大豆がおすすめです','ブルーベリーやほうれん草は目にやさしい食材です','肩こりにはゆっくり肩甲骨を回してみましょう','水分補給は少しずつ、こまめに取りましょう','1時間に一度は立って背中を伸ばしましょう','手首をやさしく回して、描く手をいたわりましょう','足首を動かすと座りっぱなしの血流改善に役立ちます','画面の明るさを部屋に合わせると目の負担を減らせます','昼食後の短い散歩は気分転換になります','寝る前は画面から少し離れて目と頭を休めましょう','深い呼吸を3回すると緊張をゆるめやすくなります'];
@@ -332,16 +404,16 @@ function renderHome() {
   const encouragement=encouragements[seed%encouragements.length];
   const healthTip=healthTips[(seed*7+3)%healthTips.length];
   container.innerHTML = `
-    <section class="home-greeting"><img src="assets/logo.png" onerror="this.onerror=null;this.src='assets/logo.svg'" alt=""><div><span>${escapeHtml(APP_NAME)}</span><h1>${greeting}</h1><p class="home-task-message">${escapeHtml(taskMessage)}</p><p class="home-encouragement">${escapeHtml(encouragement)}</p><p class="home-health-tip">☕ ${escapeHtml(healthTip)}</p></div></section>
+    <section class="home-greeting"><img src="assets/logo.png" onerror="this.onerror=null;this.src='assets/logo.svg'" alt=""><div><span>${escapeHtml(APP_NAME)}</span><h1>${greeting}</h1><p class="home-task-message">${escapeHtml(taskMessage)}</p><p class="home-encouragement">${escapeHtml(encouragement)}</p><p class="home-health-tip">☕ ${escapeHtml(healthTip)}</p>${backupReminder}</div></section>
     <div class="home-dashboard-grid">
       <section class="creative-card weekly-progress-card"><div><span class="home-kicker">今週の進捗</span><h2>制作のペース</h2><p>${weekSteps.length ? '今週が期限の工程を集計しています。' : '今週の工程はありません'}</p></div><div class="progress-ring" style="--progress:${weekPercent}%"><div><strong>${weekPercent}%</strong><span>${weekDone} / ${weekSteps.length}件</span></div></div></section>
       <section class="creative-card home-today-card"><h2>今日の予定</h2><div class="todo-list">${todoHtml}</div></section>
       <section class="creative-card home-alert-card"><h2>納期アラート</h2><div class="deadline-alerts">${alertHtml}</div></section>
       <section class="home-business-grid">
-        <button class="business-card" data-action="home-money-card" data-subtab="ledger"><span>未請求</span><strong>${unbilledCount}件</strong></button>
-        <button class="business-card" data-action="home-money-card" data-subtab="ledger"><span>未入金</span><strong>${formatMoney(unbilledTotal)}</strong></button>
-        <button class="business-card" data-action="home-money-card" data-subtab="ledger"><span>今月の売上</span><strong>${formatMoney(thisMonthTotal)}</strong></button>
-        <button class="business-card" data-action="home-money-card" data-subtab="expenses"><span>経費・領収書</span><strong>${monthExpenses}件</strong></button>
+        <button type="button" class="business-card" data-action="home-money-card" data-subtab="ledger"><span>未請求</span><strong>${unbilledCount}件</strong></button>
+        <button type="button" class="business-card" data-action="home-money-card" data-subtab="ledger"><span>未入金</span><strong>${formatMoney(unbilledTotal)}</strong></button>
+        <button type="button" class="business-card" data-action="home-money-card" data-subtab="ledger"><span>今月の売上</span><strong>${formatMoney(thisMonthTotal)}</strong></button>
+        <button type="button" class="business-card" data-action="home-money-card" data-subtab="expenses"><span>経費・領収書</span><strong>${monthExpenses}件</strong></button>
       </section>
     </div>
   `;
@@ -441,13 +513,11 @@ function timelineHtml() {
     </div>`;
 
   const rows = active.map((p) => {
-    let prevDue = null;
     let visibleBarCount = 0;
-    const barsHtml = p.steps.map((s, idx) => {
-      const startDateForBar = idx === 0 ? s.dueDate : addDays(prevDue, 1);
+    const barsHtml = p.steps.map((s) => {
+      const startDateForBar = stepStartDate(s);
       const startOffset = diffDays(startDateForBar, start);
       const endOffset = diffDays(s.dueDate, start);
-      prevDue = s.dueDate;
       if (endOffset < 0 || startOffset >= days) return '';
       visibleBarCount += 1;
       const clampedStart = Math.max(startOffset, 0);
@@ -456,7 +526,7 @@ function timelineHtml() {
       const width = Math.max((clampedEnd - clampedStart + 1) * 32 - 4, 20);
       const overdue = !s.done && endOffset < 0;
       const cls = s.done ? 'is-done' : (overdue ? 'is-overdue' : '');
-      return `<div class="timeline-bar ${cls}" style="left:${left}px;width:${width}px;background:${p.color};color:${colorText(p.color)};${s.done ? 'opacity:.38;' : ''}" title="${escapeHtml(s.name)} (${formatJP(s.dueDate)})">${escapeHtml(s.name)}</div>`;
+      return `<div class="timeline-bar ${cls}" style="left:${left}px;width:${width}px;background:${p.color};color:${colorText(p.color)};${s.done ? 'opacity:.38;' : ''}" title="${escapeHtml(s.name)} (${escapeHtml(stepPeriodLabel(s))})">${escapeHtml(s.name)}</div>`;
     }).join('');
     if (visibleBarCount === 0) return '';
     return `
@@ -474,10 +544,11 @@ function timelineHtml() {
 function openNewProjectModal() {
   const clientsOptions = state.clients.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
   let selectedColor = leastUsedProjectColor(state.projects);
+  let draftSteps = [];
   const bodyHtml = `
     <div class="modal__header">
       <h2 class="modal__title">案件を追加</h2>
-      <button class="icon-btn" data-action="close-modal">${ICONS.close}</button>
+      <button type="button" class="icon-btn" data-action="close-modal">${ICONS.close}</button>
     </div>
     <div class="modal__body">
       <form id="projectForm">
@@ -505,13 +576,17 @@ function openNewProjectModal() {
             <label class="field__label">報酬額（円）<span class="req">必須</span></label>
             <input class="input" type="number" min="0" step="1" id="pf-fee" required placeholder="例: 80000">
           </div>
-          <div class="field" style="display:flex; align-items:flex-end;">
-            <div class="checkbox-row">
+          <div class="field project-flags-field">
+            <div class="checkbox-row withholding-help-wrap">
               <input type="checkbox" id="pf-withholding">
               <label for="pf-withholding">源泉徴収あり</label>
+              <button type="button" class="help-icon" data-action="toggle-withholding-help" aria-label="源泉徴収の説明">?</button>
+              <div class="field-help-popover" hidden>法人のクライアントから直接お仕事を受け、報酬から源泉徴収税10.21%が差し引かれて振り込まれる場合にONにします。ココナラなどのサイト経由や、個人のお客様との取引では通常引かれないためOFFのままにします。</div>
             </div>
+            <div class="checkbox-row"><input type="checkbox" id="pf-coconala"><label for="pf-coconala">ココナラ経由</label></div>
           </div>
         </div>
+        <div class="platform-fee-preview" id="pf-platform-fee" hidden></div>
         <div class="field">
           <label class="field__label">案件カラー</label>
           <div id="pf-color-swatches">${colorSwatchesHtml(selectedColor, 'new-project')}</div>
@@ -529,8 +604,8 @@ function openNewProjectModal() {
       </form>
     </div>
     <div class="modal__footer">
-      <button class="btn" data-action="close-modal">キャンセル</button>
-      <button class="btn btn--primary" id="pf-submit">作成する</button>
+      <button type="button" class="btn" data-action="close-modal">キャンセル</button>
+      <button type="button" class="btn btn--primary" id="pf-submit">作成する</button>
     </div>
   `;
   const overlay = openModal(bodyHtml);
@@ -538,6 +613,8 @@ function openNewProjectModal() {
   const clientSel = $('#pf-client', overlay);
   const clientNewInput = $('#pf-client-new', overlay);
   const dueInput = $('#pf-due', overlay);
+  const feeInput = $('#pf-fee', overlay);
+  const coconalaInput = $('#pf-coconala', overlay);
   $('#pf-color-swatches', overlay).addEventListener('click', (e) => {
     const add = e.target.closest('.color-swatch-add');
     if (add) { openColorPicker(add, selectedColor, (color) => { selectedColor=color; $('#pf-color-swatches',overlay).innerHTML=colorSwatchesHtml(selectedColor,'new-project'); }); return; }
@@ -551,6 +628,7 @@ function openNewProjectModal() {
     const previewEl = $('#pf-steps-preview', overlay);
     const warnEl = $('#pf-warning', overlay);
     if (!due) {
+      draftSteps = [];
       previewEl.textContent = '納期を入力すると工程が自動生成されます。';
       warnEl.innerHTML = '';
       return;
@@ -558,8 +636,18 @@ function openNewProjectModal() {
     const clientId = clientSel.value === '__new__' ? '' : clientSel.value;
     const template = getTemplateForClient(clientId);
     const { steps, isTight, isRelaxed } = generateSteps(template, due);
-    previewEl.innerHTML = steps.map((s) => `<div class="step-preview-row"><span>${escapeHtml(s.name)}</span><span>${formatJP(s.dueDate, { withYear: true })}（${s.days}日）</span></div>`).join('');
+    draftSteps = steps;
+    previewEl.innerHTML = steps.map((s, index) => `<div class="step-preview-row"><span>${escapeHtml(s.name)}</span><label>開始<input class="input" type="date" data-pf-step-start="${index}" value="${s.startDate}"></label><span>〜</span><label>終了<input class="input" type="date" data-pf-step-due="${index}" value="${s.dueDate}"></label></div>`).join('');
     warnEl.innerHTML = isTight ? warningBoxHtml('納期までの日数が基準日程より短いため、工程を圧縮しました。スケジュールがタイトです。') : (isRelaxed ? `<div class="relaxed-box">納期まで余裕があるため、ゆとりを持たせた日程を自動設定しました</div>` : '');
+  }
+
+  function updatePlatformFeePreview() {
+    const preview = $('#pf-platform-fee', overlay);
+    const fee = Math.max(0, Number(feeInput.value) || 0);
+    const rate = Number(state.settings.platformFeeRate) || 0;
+    const amount = Math.floor(fee * rate);
+    preview.hidden = !coconalaInput.checked;
+    preview.textContent = `手数料 ${formatMoney(amount)}（${(rate * 100).toFixed(2).replace(/\.00$/, '')}%）／振込額 ${formatMoney(fee - amount)}`;
   }
 
   clientSel.addEventListener('change', () => {
@@ -567,6 +655,24 @@ function openNewProjectModal() {
     updatePreview();
   });
   dueInput.addEventListener('input', updatePreview);
+  feeInput.addEventListener('input', updatePlatformFeePreview);
+  coconalaInput.addEventListener('change', updatePlatformFeePreview);
+  $('#pf-steps-preview', overlay).addEventListener('change', (e) => {
+    const startIndex = e.target.dataset.pfStepStart;
+    const dueIndex = e.target.dataset.pfStepDue;
+    const index = Number(startIndex !== undefined ? startIndex : dueIndex);
+    const step = draftSteps[index];
+    if (!step) return;
+    const nextStart = startIndex !== undefined ? e.target.value : step.startDate;
+    const nextDue = dueIndex !== undefined ? e.target.value : step.dueDate;
+    if (!nextStart || !nextDue || diffDays(nextStart, nextDue) > 0) {
+      showToast('工程の開始日は終了日以前にしてください', 'error');
+      e.target.value = startIndex !== undefined ? step.startDate : step.dueDate;
+      return;
+    }
+    step.startDate = nextStart; step.dueDate = nextDue; step.days = diffDays(nextDue, nextStart) + 1;
+  });
+  overlay.addEventListener('modalrestored', updatePreview);
 
   $('#pf-submit', overlay).addEventListener('click', () => {
     const title = $('#pf-title', overlay).value.trim();
@@ -592,12 +698,12 @@ function openNewProjectModal() {
       clientName = c ? c.name : '';
     }
 
-    const template = getTemplateForClient(clientId);
-    const { steps } = generateSteps(template, due);
+    const steps = draftSteps.length ? draftSteps.map((step) => ({ ...step })) : generateSteps(getTemplateForClient(clientId), due).steps;
+    if (steps.some((step) => !step.startDate || !step.dueDate || diffDays(step.startDate, step.dueDate) > 0)) { showToast('工程の開始日と終了日を確認してください', 'error'); return; }
 
     const project = {
       id: uuid(), title, clientId, clientName, orderedDate: todayStr(), dueDate: due,
-      fee, hasWithholding: $('#pf-withholding', overlay).checked,
+      fee, hasWithholding: $('#pf-withholding', overlay).checked, isCoconala: coconalaInput.checked,
       memo: $('#pf-memo', overlay).value.trim(),
       status: 'in_progress', steps, color: selectedColor,
       paymentStatus: 'unbilled', paidDate: null, deliveredDate: null,
@@ -626,7 +732,7 @@ function projectDetailHtml(p) {
   return `
   <div class="modal__header">
     <h2 class="modal__title">${escapeHtml(p.title)}</h2>
-    <button class="icon-btn" data-action="close-modal">${ICONS.close}</button>
+    <button type="button" class="icon-btn" data-action="close-modal">${ICONS.close}</button>
   </div>
   <div class="modal__body">
     <div class="field-row">
@@ -649,12 +755,18 @@ function projectDetailHtml(p) {
         <input class="input" type="number" min="0" id="pd-fee" value="${p.fee}">
       </div>
       <div class="field" style="display:flex;align-items:flex-end;">
-        <div class="checkbox-row">
-          <input type="checkbox" id="pd-withholding" ${p.hasWithholding ? 'checked' : ''}>
-          <label for="pd-withholding">源泉徴収あり（${formatMoney(withholdingAmount(p))}）</label>
+        <div class="project-flags-field">
+          <div class="checkbox-row withholding-help-wrap">
+            <input type="checkbox" id="pd-withholding" ${p.hasWithholding ? 'checked' : ''}>
+            <label for="pd-withholding">源泉徴収あり（${formatMoney(withholdingAmount(p))}）</label>
+            <button type="button" class="help-icon" data-action="toggle-withholding-help" aria-label="源泉徴収の説明">?</button>
+            <div class="field-help-popover" hidden>法人のクライアントから直接お仕事を受け、報酬から源泉徴収税10.21%が差し引かれて振り込まれる場合にONにします。ココナラなどのサイト経由や、個人のお客様との取引では通常引かれないためOFFのままにします。</div>
+          </div>
+          <div class="checkbox-row"><input type="checkbox" id="pd-coconala" ${p.isCoconala ? 'checked' : ''}><label for="pd-coconala">ココナラ経由</label></div>
         </div>
       </div>
     </div>
+    ${p.isCoconala ? `<div class="platform-fee-preview">手数料 ${formatMoney(platformFeeAmount(p))}（${(Number(state.settings.platformFeeRate) * 100).toFixed(2).replace(/\.00$/, '')}%）／振込額 ${formatMoney((p.fee || 0) - platformFeeAmount(p))}</div>` : ''}
     <div class="field">
       <label class="field__label">メモ</label>
       <textarea class="textarea" id="pd-memo">${escapeHtml(p.memo || '')}</textarea>
@@ -689,6 +801,7 @@ function projectDetailHtml(p) {
       <label class="field__label">納品日</label>
       <input class="input" type="date" id="pd-delivered-date" value="${p.deliveredDate || ''}">
       <div class="field__hint">「納品」工程を完了すると自動で入りますが、手動で修正できます。</div>
+      <div class="field__hint">納品日＝実際に納品した日（売上はこの日に計上されます）／納期＝クライアントと約束した期限</div>
     </div>
 
     <div class="field">
@@ -701,10 +814,10 @@ function projectDetailHtml(p) {
     </div>
   </div>
   <div class="modal__footer" style="justify-content:space-between;">
-    <button class="btn btn--danger" data-action="delete-project" data-project-id="${p.id}">${ICONS.trash}削除</button>
+    <button type="button" class="btn btn--danger" data-action="delete-project" data-project-id="${p.id}">${ICONS.trash}削除</button>
     <div style="display:flex; gap:10px;">
-      <button class="btn" data-action="create-invoice-from-project" data-project-id="${p.id}">請求書を作成</button>
-      <button class="btn btn--primary" data-action="close-modal">閉じる</button>
+      <button type="button" class="btn" data-action="create-invoice-from-project" data-project-id="${p.id}">請求書を作成</button>
+      <button type="button" class="btn btn--primary" data-action="save-close-project" data-project-id="${p.id}">保存する</button>
     </div>
   </div>`;
 }
@@ -715,7 +828,7 @@ function stepRowHtml(s) {
   <div class="step-check-row ${s.done ? 'is-done' : ''} ${overdue ? 'is-overdue' : ''}" data-step-id="${s.id}">
     <button class="checkbox ${s.done ? 'is-checked' : ''}" type="button" data-action="toggle-step-detail" data-step-id="${s.id}">${s.done ? ICONS.check : ''}</button>
     <div class="step-check-row__name">${escapeHtml(s.name)}</div>
-    <div class="step-check-row__date"><input type="date" value="${s.dueDate}" data-action="edit-step-date" data-step-id="${s.id}"></div>
+    <div class="step-check-row__dates"><label>開始<input type="date" value="${stepStartDate(s)}" data-action="edit-step-date" data-step-date-field="startDate" data-step-id="${s.id}"></label><span>〜</span><label>終了<input type="date" value="${s.dueDate}" data-action="edit-step-date" data-step-date-field="dueDate" data-step-id="${s.id}"></label></div>
     <button class="icon-btn step-check-row__remove btn--sm" type="button" data-action="remove-step" data-step-id="${s.id}" title="削除">${ICONS.trash}</button>
   </div>`;
 }
@@ -743,7 +856,7 @@ function wireProjectDetailEvents(overlay, projectId) {
     const p = getProject(); if (!p) return;
     const v = Number(e.target.value);
     if (isNaN(v) || v < 0) { showToast('報酬額が不正です', 'error'); e.target.value = p.fee; return; }
-    p.fee = v; p.updatedAt = new Date().toISOString();
+    p.fee = v; p.updatedAt = new Date().toISOString(); syncAutoExpenseForProject(p);
     saveState(); renderCurrentTab();
     refreshProjectDetail(overlay, projectId);
   });
@@ -752,6 +865,11 @@ function wireProjectDetailEvents(overlay, projectId) {
     p.hasWithholding = e.target.checked; p.updatedAt = new Date().toISOString();
     saveState(); renderCurrentTab();
     refreshProjectDetail(overlay, projectId);
+  });
+  $('#pd-coconala', overlay).addEventListener('change', (e) => {
+    const p = getProject(); if (!p) return;
+    p.isCoconala = e.target.checked; p.updatedAt = new Date().toISOString();
+    syncAutoExpenseForProject(p); saveState(); renderCurrentTab(); refreshProjectDetail(overlay, projectId);
   });
   $('#pd-memo', overlay).addEventListener('change', (e) => {
     const p = getProject(); if (!p) return;
@@ -766,7 +884,7 @@ function wireProjectDetailEvents(overlay, projectId) {
   $('#pd-delivered-date', overlay).addEventListener('change', (e) => {
     const p = getProject(); if (!p) return;
     p.deliveredDate = e.target.value || null;
-    saveState(); renderCurrentTab();
+    syncAutoExpenseForProject(p); saveState(); renderCurrentTab();
   });
 
   $all('[data-action="edit-step-date"]', overlay).forEach((input) => {
@@ -774,7 +892,15 @@ function wireProjectDetailEvents(overlay, projectId) {
       const p = getProject(); if (!p) return;
       const step = p.steps.find((s) => s.id === input.dataset.stepId);
       if (!step) return;
-      step.dueDate = e.target.value;
+      const field = input.dataset.stepDateField;
+      const nextStart = field === 'startDate' ? e.target.value : stepStartDate(step);
+      const nextDue = field === 'dueDate' ? e.target.value : step.dueDate;
+      if (!nextStart || !nextDue || diffDays(nextStart, nextDue) > 0) {
+        showToast('工程の開始日は終了日以前にしてください', 'error');
+        e.target.value = field === 'startDate' ? stepStartDate(step) : step.dueDate;
+        return;
+      }
+      step.startDate = nextStart; step.dueDate = nextDue; step.days = diffDays(nextDue, nextStart) + 1;
       p.updatedAt = new Date().toISOString();
       saveState(); renderCurrentTab();
       refreshProjectDetail(overlay, projectId);
@@ -804,9 +930,14 @@ function wireProjectDetailEvents(overlay, projectId) {
 function refreshProjectDetail(overlay, projectId) {
   const p = state.projects.find((x) => x.id === projectId);
   if (!p) { closeModal(); return; }
+  const previousBody = $('.modal__body', overlay);
+  const scrollTop = previousBody ? previousBody.scrollTop : 0;
   overlay.querySelector('.modal').innerHTML = projectDetailHtml(p);
+  $all('button', overlay).forEach((button) => { if (!button.hasAttribute('type')) button.type = 'button'; });
   hydrateImages(overlay);
   wireProjectDetailEvents(overlay, projectId);
+  const nextBody = $('.modal__body', overlay);
+  if (nextBody) requestAnimationFrame(() => { nextBody.scrollTop = scrollTop; });
 }
 
 /* ===================== お金タブ ===================== */
@@ -826,12 +957,12 @@ function renderMoneyTab() {
       <h1 class="view-title">お金</h1>
     </div>
     <div class="year-switch">
-      <button class="icon-btn" data-action="money-year-prev">${arrowLeftSvg()}</button>
+      <button type="button" class="icon-btn" data-action="money-year-prev">${arrowLeftSvg()}</button>
       <div class="year-switch__label">${moneyYear}年</div>
-      <button class="icon-btn" data-action="money-year-next">${arrowRightSvg()}</button>
+      <button type="button" class="icon-btn" data-action="money-year-next">${arrowRightSvg()}</button>
     </div>
     <div class="money-subtabs">
-      ${subtabs.map((t) => `<button class="money-subtab-btn ${moneySubTab === t ? 'is-active' : ''}" data-action="switch-money-subtab" data-subtab="${t}">${subtabLabels[t]}</button>`).join('')}
+      ${subtabs.map((t) => `<button type="button" class="money-subtab-btn ${moneySubTab === t ? 'is-active' : ''}" data-action="switch-money-subtab" data-subtab="${t}">${subtabLabels[t]}</button>`).join('')}
     </div>
     <div id="moneySubContent"></div>
   `;
@@ -862,7 +993,7 @@ function ledgerHtml(year) {
   return `
     <div class="summary-tile annual-total"><div class="summary-tile__label">${year}年の売上合計</div><div class="summary-tile__value">${formatMoney(total)}</div></div>
     <div class="sales-chart sales-chart--12">${monthly.map((value, month) => `<div class="sales-chart__col"><div class="sales-chart__bar-wrap"><div class="sales-chart__bar" style="height:${Math.max(3, value / max * 100)}%" data-tooltip="${formatMoney(value)}"></div></div><div class="sales-chart__label">${month + 1}月</div></div>`).join('')}</div>
-    <div class="info-box">確定申告では売上は入金日ではなく「納品日（役務提供完了日）」に計上します（発生主義）。</div>
+    <div class="info-box">確定申告では売上は入金日ではなく「納品日（役務提供完了日）」に計上します（発生主義）。納期より早く納めた場合は、実際の納品日の月の売上になります。ココナラ等の手数料は売上から差し引かず、「支払手数料」として経費に計上します（総額主義）。</div>
     ${projects.length === 0 ? `<p class="field__hint">この年に計上された売上はありません。</p>` : `
     <div class="table-wrap"><table class="data-table">
       <thead><tr><th>計上日</th><th>案件名</th><th>クライアント</th><th class="num-cell">金額</th><th class="num-cell">源泉徴収額</th><th class="num-cell">手取り</th><th>入金状況</th></tr></thead>
@@ -934,7 +1065,7 @@ function expensesHtml(year) {
       </div>
       <div class="expense-form__actions"><button type="submit" class="btn btn--primary">${editing ? '更新' : ICONS.plus + '追加'}</button>${editing ? '<button type="button" class="btn" data-action="cancel-edit-expense">キャンセル</button>' : ''}</div>
     </form>
-    <button class="text-link expense-guide-link" data-action="go-expense-guide">何が経費になる？</button>
+    <button type="button" class="text-link expense-guide-link" data-action="go-expense-guide">何が経費になる？</button>
 
     <div class="chip-filter">
       ${categories.map((c) => `<button type="button" class="chip ${expenseCategoryFilter === c ? 'is-active' : ''}" data-action="filter-expense-category" data-category="${escapeHtml(c)}">${c === '__all__' ? 'すべて' : escapeHtml(c)}</button>`).join('')}
@@ -946,11 +1077,11 @@ function expensesHtml(year) {
       <tbody>
       ${sorted.map((e) => `<tr>
         <td>${formatJPSlash(e.date)}</td>
-        <td>${escapeHtml(e.category)}</td>
+        <td>${escapeHtml(e.category)}${e.autoProjectId ? '<span class="badge badge--auto">自動</span>' : ''}</td>
         <td class="num-cell">${formatMoney(e.amount)}</td>
         <td>${escapeHtml(e.memo || '')}</td>
         <td>${e.receiptImageId ? `<img class="receipt-thumb" data-image-id="${e.receiptImageId}" data-action="view-image" data-image-view-id="${e.receiptImageId}" alt="領収書">` : ''}</td>
-        <td><div class="row-actions"><button class="btn btn--sm" data-action="edit-expense" data-expense-id="${e.id}">編集</button><button class="icon-btn btn--sm" data-action="delete-expense" data-expense-id="${e.id}">${ICONS.trash}</button></div></td>
+        <td>${e.autoProjectId ? '<span class="auto-expense-note">案件側で自動管理されています</span>' : `<div class="row-actions"><button type="button" class="btn btn--sm" data-action="edit-expense" data-expense-id="${e.id}">編集</button><button type="button" class="icon-btn btn--sm" data-action="delete-expense" data-expense-id="${e.id}">${ICONS.trash}</button></div>`}</td>
       </tr>`).join('')}
       </tbody>
     </table></div>
@@ -1035,7 +1166,7 @@ function summaryHtml(year) {
     ${months.map((m) => `<tr><td>${m + 1}月</td><td class="num-cell">${formatMoney(monthlyRevenue[m])}</td><td class="num-cell">${formatMoney(monthlyExpense[m])}</td></tr>`).join('')}
     </tbody>
   </table></div>
-  <div class="view-toolbar__actions tax-export-actions"><button class="btn btn--sm" data-action="export-ledger-csv" data-year="${year}">売上をCSV出力</button><button class="btn btn--sm" data-action="export-expenses-csv" data-year="${year}">経費をCSV出力</button></div>
+  <div class="view-toolbar__actions tax-export-actions"><button type="button" class="btn btn--sm" data-action="export-ledger-csv" data-year="${year}">売上をCSV出力</button><button type="button" class="btn btn--sm" data-action="export-expenses-csv" data-year="${year}">経費をCSV出力</button></div>
   <section class="tax-guide">
     <h2 class="section-title">確定申告ガイド</h2>
     <details class="guide-accordion"><summary>確定申告のきほんの流れ</summary><div><ol><li>日々の帳簿づけ。このアプリの売上・経費記録がそのまま使えます。</li><li>1〜3月に前年分の書類を作成します。</li><li>原則3月15日までに提出・納税します。</li></ol><p><strong>売上は入金日ではなく納品日で計上</strong>します（発生主義）。</p></div></details>
@@ -1053,14 +1184,14 @@ const UNIT_OPTIONS=['式','点','件','枚','体','カット','ページ','時�
 function unitDatalistHtml(){return `<datalist id="unit-options">${UNIT_OPTIONS.map((unit)=>`<option value="${unit}"></option>`).join('')}</datalist>`;}
 function quotesListHtml(year) {
   const quotes=state.quotes.filter((q)=>q.issueDate&&parseDateStr(q.issueDate).getFullYear()===year).sort((a,b)=>diffDays(b.issueDate,a.issueDate));
-  return `<div class="invoice-toolbar"><button class="text-link" data-action="open-price-list-settings">単価表を編集</button><button class="btn btn--primary" data-action="new-quote">${ICONS.plus}新規作成</button></div>${quotes.length?`<div class="invoice-grid quote-grid">${quotes.map((q)=>`<article class="invoice-card" data-action="open-quote" data-quote-id="${escapeHtml(q.id)}"><div class="invoice-miniature"><div class="invoice-miniature__page">${quotePreviewInnerHtml(q)}</div></div><div class="invoice-card__info"><div class="invoice-card__line"><strong>${escapeHtml(q.number)}</strong><span class="badge quote-status--${q.status}">${QUOTE_STATUS_LABEL[q.status]||'下書き'}</span></div><div>${escapeHtml(q.clientName)}${escapeHtml(q.honorific||'')}</div><div class="invoice-card__line"><strong>${formatMoney(quoteTotal(q))}</strong><button class="icon-btn btn--sm" data-action="delete-quote" data-quote-id="${escapeHtml(q.id)}">${ICONS.trash}</button></div></div></article>`).join('')}</div>`:'<p class="field__hint">この年の見積書はまだありません。</p>'}`;
+  return `<div class="invoice-toolbar"><button type="button" class="text-link" data-action="open-price-list-settings">単価表を編集</button><button type="button" class="btn btn--primary" data-action="new-quote">${ICONS.plus}新規作成</button></div>${quotes.length?`<div class="invoice-grid quote-grid">${quotes.map((q)=>`<article class="invoice-card" data-action="open-quote" data-quote-id="${escapeHtml(q.id)}"><div class="invoice-miniature"><div class="invoice-miniature__page">${quotePreviewInnerHtml(q)}</div></div><div class="invoice-card__info"><div class="invoice-card__line"><strong>${escapeHtml(q.number)}</strong><span class="badge quote-status--${q.status}">${QUOTE_STATUS_LABEL[q.status]||'下書き'}</span></div><div>${escapeHtml(q.clientName)}${escapeHtml(q.honorific||'')}</div><div class="invoice-card__line"><strong>${formatMoney(quoteTotal(q))}</strong><button type="button" class="icon-btn btn--sm" data-action="delete-quote" data-quote-id="${escapeHtml(q.id)}">${ICONS.trash}</button></div></div></article>`).join('')}</div>`:'<p class="field__hint">この年の見積書はまだありません。</p>'}`;
 }
 function newQuoteDraft() { const year=new Date().getFullYear();return {id:uuid(),number:nextQuoteNumber(year),issueDate:todayStr(),validUntil:addDays(todayStr(),14),clientId:'',clientName:'',honorific:'御中',subject:'',items:[],rushEnabled:false,rushRate:(state.settings.priceList.find((p)=>p.type==='rate')||{rate:.3}).rate||.3,taxRate:0,notes:'本見積の有効期限は発行日より14日間です。',status:'draft',createdAt:new Date().toISOString()}; }
-function quoteItemRowHtml(item,idx) { return `<div class="invoice-item-row quote-item-row" data-idx="${idx}"><input class="input input--name" data-field="name" value="${escapeHtml(item.name)}" placeholder="品目"><input class="input input--qty" type="number" min="1" data-field="qty" value="${Number(item.qty)||1}" placeholder="数量"><input class="input input--unit" list="unit-options" data-field="unit" value="${escapeHtml(item.unit||'式')}" placeholder="単位"><input class="input input--price" type="number" min="0" data-field="unitPrice" value="${Number(item.unitPrice)||0}" placeholder="単価"><div class="invoice-item-row__amount">${formatMoney((Number(item.qty)||0)*(Number(item.unitPrice)||0))}</div><button class="icon-btn btn--sm" data-action="remove-quote-item" data-idx="${idx}">${ICONS.trash}</button></div>`; }
+function quoteItemRowHtml(item,idx) { return `<div class="invoice-item-row quote-item-row" data-idx="${idx}"><input class="input input--name" data-field="name" value="${escapeHtml(item.name)}" placeholder="品目"><input class="input input--qty" type="number" min="1" data-field="qty" value="${Number(item.qty)||1}" placeholder="数量"><input class="input input--unit" list="unit-options" data-field="unit" value="${escapeHtml(item.unit||'式')}" placeholder="単位"><input class="input input--price" type="number" min="0" data-field="unitPrice" value="${Number(item.unitPrice)||0}" placeholder="単価"><div class="invoice-item-row__amount">${formatMoney((Number(item.qty)||0)*(Number(item.unitPrice)||0))}</div><button type="button" class="icon-btn btn--sm" data-action="remove-quote-item" data-idx="${idx}">${ICONS.trash}</button></div>`; }
 function quoteFormHtml(q) {
   const categories=Array.from(new Set(state.settings.priceList.filter((p)=>p.type!=='rate').map((p)=>p.category)));
   const clientOptions=state.clients.map((c)=>`<option value="${escapeHtml(c.id)}" ${q.clientId===c.id?'selected':''}>${escapeHtml(c.name)}</option>`).join('');
-  return `<div class="modal__header"><h2 class="modal__title">見積書 ${escapeHtml(q.number)}</h2><button class="icon-btn" data-action="close-modal">${ICONS.close}</button></div><div class="modal__body"><div class="field-row"><div class="field"><label class="field__label">番号</label><input class="input" id="qf-number" value="${escapeHtml(q.number)}"></div><div class="field"><label class="field__label">発行日</label><input class="input" type="date" id="qf-issue" value="${escapeHtml(q.issueDate)}"></div><div class="field"><label class="field__label">有効期限</label><input class="input" type="date" id="qf-valid" value="${escapeHtml(q.validUntil)}"></div></div><div class="field-row"><div class="field"><label class="field__label">クライアント</label><select class="select" id="qf-client"><option value="">直接入力</option>${clientOptions}<option value="__new__">＋新規クライアント</option></select><input class="input" id="qf-client-name" value="${escapeHtml(q.clientName)}" placeholder="宛先名" style="margin-top:8px"></div><div class="field"><label class="field__label">敬称</label><select class="select" id="qf-honorific"><option ${q.honorific==='御中'?'selected':''}>御中</option><option ${q.honorific==='様'?'selected':''}>様</option></select></div><div class="field"><label class="field__label">件名</label><input class="input" id="qf-subject" value="${escapeHtml(q.subject)}"></div></div><div class="quote-price-picker"><div class="quote-price-picker__head"><h3>単価表から追加</h3><button class="text-link" data-action="open-price-list-settings">単価表を編集</button></div>${categories.map((cat)=>`<section><h4>${escapeHtml(cat)}</h4><div>${state.settings.priceList.filter((p)=>p.type!=='rate'&&p.category===cat).map((p)=>`<button class="price-pick-btn" data-action="pick-price-item" data-price-id="${escapeHtml(p.id)}"><span>${escapeHtml(p.name)}</span><strong>${formatMoney(p.price)}</strong></button>`).join('')}</div></section>`).join('')}</div><div class="field"><div class="field-label-line"><label class="field__label">明細</label><button class="btn btn--sm" data-action="add-free-quote-item">自由入力行を追加</button></div><div id="qf-items" class="invoice-items-editor">${q.items.map(quoteItemRowHtml).join('')}</div></div><div class="quote-options"><label class="checkbox-row"><input type="checkbox" id="qf-rush" ${q.rushEnabled?'checked':''}>特急対応（+<input class="rate-inline" id="qf-rush-rate" type="number" min="0" value="${Math.round((q.rushRate||.3)*100)}">%）</label><div class="radio-row"><span>消費税</span><label><input type="radio" name="qf-tax" value="0" ${!q.taxRate?'checked':''}>なし</label><label><input type="radio" name="qf-tax" value="0.1" ${q.taxRate===.1?'checked':''}>10%</label></div></div><div class="field"><label class="field__label">メモ・備考</label><textarea class="textarea" id="qf-notes">${escapeHtml(q.notes)}</textarea></div><div class="quote-live-total" id="qf-total"></div></div><div class="modal__footer"><button class="btn" data-action="close-modal">キャンセル</button><button class="btn btn--primary" id="qf-save">保存してプレビュー</button></div>`;
+  return `<div class="modal__header"><h2 class="modal__title">見積書 ${escapeHtml(q.number)}</h2><button type="button" class="icon-btn" data-action="close-modal">${ICONS.close}</button></div><div class="modal__body"><div class="field-row"><div class="field"><label class="field__label">番号</label><input class="input" id="qf-number" value="${escapeHtml(q.number)}"></div><div class="field"><label class="field__label">発行日</label><input class="input" type="date" id="qf-issue" value="${escapeHtml(q.issueDate)}"></div><div class="field"><label class="field__label">有効期限</label><input class="input" type="date" id="qf-valid" value="${escapeHtml(q.validUntil)}"></div></div><div class="field-row"><div class="field"><label class="field__label">クライアント</label><select class="select" id="qf-client"><option value="">直接入力</option>${clientOptions}<option value="__new__">＋新規クライアント</option></select><input class="input" id="qf-client-name" value="${escapeHtml(q.clientName)}" placeholder="宛先名" style="margin-top:8px"></div><div class="field"><label class="field__label">敬称</label><select class="select" id="qf-honorific"><option ${q.honorific==='御中'?'selected':''}>御中</option><option ${q.honorific==='様'?'selected':''}>様</option></select></div><div class="field"><label class="field__label">件名</label><input class="input" id="qf-subject" value="${escapeHtml(q.subject)}"></div></div><div class="quote-price-picker"><div class="quote-price-picker__head"><h3>単価表から追加</h3><button type="button" class="text-link" data-action="open-price-list-settings">単価表を編集</button></div>${categories.map((cat)=>`<section><h4>${escapeHtml(cat)}</h4><div>${state.settings.priceList.filter((p)=>p.type!=='rate'&&p.category===cat).map((p)=>`<button type="button" class="price-pick-btn" data-action="pick-price-item" data-price-id="${escapeHtml(p.id)}"><span>${escapeHtml(p.name)}</span><strong>${formatMoney(p.price)}</strong></button>`).join('')}</div></section>`).join('')}</div><div class="field"><div class="field-label-line"><label class="field__label">明細</label><button type="button" class="btn btn--sm" data-action="add-free-quote-item">自由入力行を追加</button></div><div id="qf-items" class="invoice-items-editor">${q.items.map(quoteItemRowHtml).join('')}</div></div><div class="quote-options"><label class="checkbox-row"><input type="checkbox" id="qf-rush" ${q.rushEnabled?'checked':''}>特急対応（+<input class="rate-inline" id="qf-rush-rate" type="number" min="0" value="${Math.round((q.rushRate||.3)*100)}">%）</label><div class="radio-row"><span>消費税</span><label><input type="radio" name="qf-tax" value="0" ${!q.taxRate?'checked':''}>なし</label><label><input type="radio" name="qf-tax" value="0.1" ${q.taxRate===.1?'checked':''}>10%</label></div></div><div class="field"><label class="field__label">メモ・備考</label><textarea class="textarea" id="qf-notes">${escapeHtml(q.notes)}</textarea></div><div class="quote-live-total" id="qf-total"></div></div><div class="modal__footer"><button type="button" class="btn" data-action="close-modal">キャンセル</button><button type="button" class="btn btn--primary" id="qf-save">保存してプレビュー</button></div>`;
 }
 function openQuoteFormModal(id) { const original=id?state.quotes.find((q)=>q.id===id):newQuoteDraft();if(!original)return;const isNew=!id;const overlay=openModal(quoteFormHtml(original),{wide:true});overlay.insertAdjacentHTML('beforeend',unitDatalistHtml());wireQuoteForm(overlay,original,isNew); }
 function wireQuoteForm(overlay,original,isNew) {
@@ -1078,7 +1209,7 @@ function quotePreviewInnerHtml(q) {
   const issuer=state.settings.issuer; const rush=quoteRush(q); const total=quoteTotal(q);
   return `<div class="invoice-preview quote-preview"><div class="invoice-preview__title">お見積書</div><div class="invoice-preview__meta">見積番号: ${escapeHtml(q.number)}　発行日: ${formatJPSlash(q.issueDate)}</div><div class="invoice-preview__top"><div class="invoice-preview__to">${escapeHtml(q.clientName)} ${escapeHtml(q.honorific||'')}</div><div class="invoice-preview__issuer">${escapeHtml(issuer.name||'')}<br>${escapeHtml(issuer.address||'')}<br>${issuer.tel?'TEL: '+escapeHtml(issuer.tel)+'<br>':''}${issuer.email?escapeHtml(issuer.email):''}</div></div><div class="invoice-preview__subject">件名: ${escapeHtml(q.subject||'')}　有効期限: ${formatJPSlash(q.validUntil)}</div><div class="invoice-preview__total-box"><span class="invoice-preview__total-label">お見積金額（税込）</span><span class="invoice-preview__total-value">${formatMoney(total)}</span></div><table class="invoice-table"><thead><tr><th>品目</th><th style="width:60px">数量</th><th style="width:65px">単位</th><th style="width:105px">単価</th><th style="width:115px">金額</th></tr></thead><tbody>${q.items.map((it)=>`<tr><td>${escapeHtml(it.name)}</td><td class="num">${Number(it.qty)||0}</td><td>${escapeHtml(it.unit||'式')}</td><td class="num">${formatMoney(it.unitPrice)}</td><td class="num">${formatMoney((Number(it.qty)||0)*(Number(it.unitPrice)||0))}</td></tr>`).join('')}${rush?`<tr><td>特急対応（+${Math.round(q.rushRate*100)}%）</td><td class="num">1</td><td>式</td><td class="num">${formatMoney(rush)}</td><td class="num">${formatMoney(rush)}</td></tr>`:''}</tbody></table><div class="invoice-preview__totals"><div class="invoice-preview__totals-row"><span>小計</span><span>${formatMoney(quoteSubtotal(q))}</span></div>${rush?`<div class="invoice-preview__totals-row"><span>特急対応</span><span>${formatMoney(rush)}</span></div>`:''}<div class="invoice-preview__totals-row"><span>消費税${q.taxRate?'（10%）':''}</span><span>${formatMoney(quoteTax(q))}</span></div><div class="invoice-preview__totals-row grand"><span>合計</span><span>${formatMoney(total)}</span></div></div><div class="invoice-preview__bottom"><div class="invoice-preview__notes"><h4>備考</h4>${escapeHtml(q.notes||'本見積の有効期限は発行日より14日間です。').replace(/\n/g,'<br>')}</div></div></div>`;
 }
-function openQuotePreviewModal(id) { const q=state.quotes.find((x)=>x.id===id);if(!q)return;const safeId=escapeHtml(q.id);const overlay=openModal(`<div class="modal__header"><h2 class="modal__title">見積書プレビュー</h2><button class="icon-btn" data-action="close-modal">${ICONS.close}</button></div><div class="modal__body"><div class="invoice-toolbar"><div><button class="btn btn--sm" data-action="edit-quote" data-quote-id="${safeId}">編集</button><button class="btn btn--sm" data-action="print-invoice">印刷 / PDF保存</button><button class="btn btn--sm" data-action="save-quote-jpg" data-quote-id="${safeId}">JPGで保存</button><button class="btn btn--sm" data-action="export-quote-csv" data-quote-id="${safeId}">CSV</button><button class="btn btn--sm" data-action="convert-quote-invoice" data-quote-id="${safeId}">この見積から請求書を作成</button><select class="select quote-status-select" data-quote-id="${safeId}">${Object.entries(QUOTE_STATUS_LABEL).map(([value,label])=>`<option value="${value}" ${q.status===value?'selected':''}>${label}</option>`).join('')}</select></div></div><div class="invoice-preview-wrap a4-fit-preview">${quotePreviewInnerHtml(q)}</div></div>`,{wide:true});$('.quote-status-select',overlay).addEventListener('change',(e)=>{q.status=e.target.value;saveState();renderMoneyTab();});requestAnimationFrame(()=>fitA4Preview(overlay)); }
+function openQuotePreviewModal(id) { const q=state.quotes.find((x)=>x.id===id);if(!q)return;const safeId=escapeHtml(q.id);const overlay=openModal(`<div class="modal__header"><h2 class="modal__title">見積書プレビュー</h2><button type="button" class="icon-btn" data-action="close-modal">${ICONS.close}</button></div><div class="modal__body"><div class="invoice-toolbar"><div><button type="button" class="btn btn--sm" data-action="edit-quote" data-quote-id="${safeId}">編集</button><button type="button" class="btn btn--sm" data-action="print-invoice">印刷 / PDF保存</button><button type="button" class="btn btn--sm" data-action="save-quote-jpg" data-quote-id="${safeId}">JPGで保存</button><button type="button" class="btn btn--sm" data-action="export-quote-csv" data-quote-id="${safeId}">CSV</button><button type="button" class="btn btn--sm" data-action="convert-quote-invoice" data-quote-id="${safeId}">この見積から請求書を作成</button><select class="select quote-status-select" data-quote-id="${safeId}">${Object.entries(QUOTE_STATUS_LABEL).map(([value,label])=>`<option value="${value}" ${q.status===value?'selected':''}>${label}</option>`).join('')}</select></div></div><div class="invoice-preview-wrap a4-fit-preview">${quotePreviewInnerHtml(q)}</div></div>`,{wide:true});$('.quote-status-select',overlay).addEventListener('change',(e)=>{q.status=e.target.value;saveState();renderMoneyTab();});requestAnimationFrame(()=>fitA4Preview(overlay)); }
 function deleteQuote(id){if(!confirm('この見積書を削除します。よろしいですか？'))return;state.quotes=state.quotes.filter((q)=>q.id!==id);saveState();closeModal();renderMoneyTab();}
 function saveQuoteAsJpg(id){
   const q=state.quotes.find((x)=>x.id===id);if(!q)return;const W=1240,H=1754,margin=90;
@@ -1109,10 +1240,10 @@ function invoicesListHtml(year) {
   return `
     <div class="invoice-toolbar">
       <div></div>
-      <button class="btn btn--primary" data-action="new-invoice">${ICONS.plus}新規作成</button>
+      <button type="button" class="btn btn--primary" data-action="new-invoice">${ICONS.plus}新規作成</button>
     </div>
     ${invoices.length === 0 ? `<p class="field__hint">この年の請求書はまだありません。</p>` : `
-    <div class="invoice-grid">${invoices.map((iv) => `<article class="invoice-card" data-action="open-invoice" data-invoice-id="${iv.id}" tabindex="0" role="button"><div class="invoice-miniature"><div class="invoice-miniature__page">${invoicePreviewInnerHtml(iv)}</div></div><div class="invoice-card__info"><div class="invoice-card__line"><strong>${escapeHtml(iv.number)}</strong><span class="badge badge--${iv.status === 'paid' ? 'paid' : 'billed'}">${iv.status === 'paid' ? '入金済み' : '発行済み'}</span></div><div>${escapeHtml(iv.clientName)}${escapeHtml(iv.honorific || '')}</div><div class="invoice-card__line"><strong>${formatMoney(invoiceTotal(iv))}</strong><button class="icon-btn btn--sm" data-action="delete-invoice" data-invoice-id="${iv.id}" aria-label="削除">${ICONS.trash}</button></div></div></article>`).join('')}</div>`}
+    <div class="invoice-grid">${invoices.map((iv) => `<article class="invoice-card" data-action="open-invoice" data-invoice-id="${iv.id}" tabindex="0" role="button"><div class="invoice-miniature"><div class="invoice-miniature__page">${invoicePreviewInnerHtml(iv)}</div></div><div class="invoice-card__info"><div class="invoice-card__line"><strong>${escapeHtml(iv.number)}</strong><span class="badge badge--${iv.status === 'paid' ? 'paid' : 'billed'}">${iv.status === 'paid' ? '入金済み' : '発行済み'}</span></div><div>${escapeHtml(iv.clientName)}${escapeHtml(iv.honorific || '')}</div><div class="invoice-card__line"><strong>${formatMoney(invoiceTotal(iv))}</strong><button type="button" class="icon-btn btn--sm" data-action="delete-invoice" data-invoice-id="${iv.id}" aria-label="削除">${ICONS.trash}</button></div></div></article>`).join('')}</div>`}
   `;
 }
 
@@ -1160,7 +1291,7 @@ function invoiceFormHtml(inv, isNew) {
   return `
   <div class="modal__header">
     <h2 class="modal__title">請求書 ${inv.number ? escapeHtml(inv.number) : ''}</h2>
-    <button class="icon-btn" data-action="close-modal">${ICONS.close}</button>
+    <button type="button" class="icon-btn" data-action="close-modal">${ICONS.close}</button>
   </div>
   <div class="modal__body">
     <div class="field-row">
@@ -1208,7 +1339,7 @@ function invoiceFormHtml(inv, isNew) {
     <div class="info-box" id="if-total-preview"></div>
   </div>
   <div class="modal__footer">
-    <button class="btn" data-action="close-modal">キャンセル</button>
+    <button type="button" class="btn" data-action="close-modal">キャンセル</button>
     <button class="btn btn--primary" id="if-save" type="button">保存してプレビュー</button>
   </div>`;
 }
@@ -1328,17 +1459,17 @@ function invoicePreviewModalHtml(inv) {
   return `
   <div class="modal__header">
     <h2 class="modal__title">請求書プレビュー</h2>
-    <button class="icon-btn" data-action="close-modal">${ICONS.close}</button>
+    <button type="button" class="icon-btn" data-action="close-modal">${ICONS.close}</button>
   </div>
   <div class="modal__body">
     <div class="invoice-toolbar">
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn btn--sm" data-action="edit-invoice" data-invoice-id="${inv.id}">編集</button>
-        <button class="btn btn--sm" data-action="print-invoice">印刷 / PDF保存</button>
-        <button class="btn btn--sm" data-action="save-invoice-jpg" data-invoice-id="${inv.id}">JPGで保存</button>
-        <button class="btn btn--sm" data-action="export-invoice-csv" data-invoice-id="${inv.id}">CSV</button>
-        ${inv.status !== 'paid' ? `<button class="btn btn--sm" data-action="mark-invoice-paid" data-invoice-id="${inv.id}">入金済みにする</button>` : `<span class="badge badge--paid">入金済み</span>`}
-        <button class="btn btn--sm btn--danger" data-action="delete-invoice" data-invoice-id="${inv.id}">削除</button>
+        <button type="button" class="btn btn--sm" data-action="edit-invoice" data-invoice-id="${inv.id}">編集</button>
+        <button type="button" class="btn btn--sm" data-action="print-invoice">印刷 / PDF保存</button>
+        <button type="button" class="btn btn--sm" data-action="save-invoice-jpg" data-invoice-id="${inv.id}">JPGで保存</button>
+        <button type="button" class="btn btn--sm" data-action="export-invoice-csv" data-invoice-id="${inv.id}">CSV</button>
+        ${inv.status !== 'paid' ? `<button type="button" class="btn btn--sm" data-action="mark-invoice-paid" data-invoice-id="${inv.id}">入金済みにする</button>` : `<span class="badge badge--paid">入金済み</span>`}
+        <button type="button" class="btn btn--sm btn--danger" data-action="delete-invoice" data-invoice-id="${inv.id}">削除</button>
       </div>
     </div>
     <div class="field__hint" style="margin-bottom:12px;">PDFで保存するには、印刷ダイアログで「PDFとして保存」を選んでください。</div>
@@ -1612,7 +1743,7 @@ function renderGalleryTab() {
           <option value="__all__">すべての月</option>
           ${Array.from({length:12},(_,i)=>`<option value="${i+1}" ${String(galleryMonth)===String(i+1)?'selected':''}>${i+1}月</option>`).join('')}
         </select>
-        <button class="btn btn--primary" data-action="add-gallery-item">${ICONS.plus}作品を追加</button>
+        <button type="button" class="btn btn--primary" data-action="add-gallery-item">${ICONS.plus}作品を追加</button>
       </div>
     </div>
     ${filtered.length === 0 ? emptyStateHtml('image', '作品がまだありません', '案件に画像を添付するか、ここから直接追加できます。', 'add-gallery-item', '作品を追加') : `
@@ -1649,7 +1780,7 @@ function openGalleryItemModal(key) {
   const overlay = openModal(`
     <div class="modal__header">
       <h2 class="modal__title">${escapeHtml(item.title || '無題')}</h2>
-      <button class="icon-btn" data-action="close-modal">${ICONS.close}</button>
+      <button type="button" class="icon-btn" data-action="close-modal">${ICONS.close}</button>
     </div>
     <div class="modal__body">
       <img data-image-id="${item.imageId}" style="width:100%; border-radius:8px; margin-bottom:16px; display:block;" alt="">
@@ -1659,7 +1790,7 @@ function openGalleryItemModal(key) {
         <div class="field"><label class="field__label">納品日</label><div>${item.deliveredDate ? formatJP(item.deliveredDate, { withYear: true }) : '—'}</div></div>
         <div class="field"><label class="field__label">金額</label><div>${item.fee ? formatMoney(item.fee) : '—'}</div></div>
       </div>
-      ${item.source === 'extra' ? `<button class="btn btn--danger" data-action="delete-gallery-extra" data-extra-id="${item.extraId}">${ICONS.trash}削除</button>` : ''}
+      ${item.source === 'extra' ? `<button type="button" class="btn btn--danger" data-action="delete-gallery-extra" data-extra-id="${item.extraId}">${ICONS.trash}削除</button>` : ''}
     </div>
   `, { wide: true });
   hydrateImages(overlay);
@@ -1672,7 +1803,7 @@ function openGalleryItemModal(key) {
 
 function openAddGalleryItemModal() {
   const overlay = openModal(`
-    <div class="modal__header"><h2 class="modal__title">作品を追加</h2><button class="icon-btn" data-action="close-modal">${ICONS.close}</button></div>
+    <div class="modal__header"><h2 class="modal__title">作品を追加</h2><button type="button" class="icon-btn" data-action="close-modal">${ICONS.close}</button></div>
     <div class="modal__body">
       <div class="field"><label class="field__label">画像<span class="req">必須</span></label><input type="file" id="gi-file" accept="image/*"></div>
       <div class="field"><label class="field__label">タイトル</label><input class="input" id="gi-title"></div>
@@ -1682,7 +1813,7 @@ function openAddGalleryItemModal() {
       <div class="field"><label class="field__label">金額（円）</label><input class="input" type="number" min="0" id="gi-fee"></div>
     </div>
     <div class="modal__footer">
-      <button class="btn" data-action="close-modal">キャンセル</button>
+      <button type="button" class="btn" data-action="close-modal">キャンセル</button>
       <button class="btn btn--primary" id="gi-save" type="button">追加する</button>
     </div>
   `);
@@ -1716,11 +1847,14 @@ function deleteGalleryExtra(extraId) {
 /* ===================== 設定モーダル ===================== */
 let settingsTab = 'template';
 let settingsSelectedClientId = '';
+let settingsReturnToProject = false;
 
-function openSettingsModal() {
-  settingsTab = 'template';
+function openSettingsModal(options) {
+  options = options || {};
+  settingsTab = options.initialTab || 'template';
   settingsSelectedClientId = '';
-  const overlay = openModal(settingsModalHtml(), { wide: true });
+  settingsReturnToProject = !!options.returnToProject;
+  const overlay = openModal(settingsModalHtml(), { wide: true, stack:!!options.stack });
   wireSettingsModal(overlay);
 }
 
@@ -1728,17 +1862,18 @@ function settingsModalHtml() {
   return `
   <div class="modal__header">
     <h2 class="modal__title">設定</h2>
-    <button class="icon-btn" data-action="close-modal">${ICONS.close}</button>
+    <button type="button" class="icon-btn" data-action="close-modal">${ICONS.close}</button>
   </div>
   <div class="modal__body settings-modal-body">
+    ${settingsReturnToProject ? `<button type="button" class="btn settings-return-btn" data-action="close-modal">← 案件入力に戻る</button>` : ''}
     <div class="money-subtabs">
-      <button class="money-subtab-btn ${settingsTab === 'template' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="template">工程テンプレート</button>
-      <button class="money-subtab-btn ${settingsTab === 'clients' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="clients">クライアント管理</button>
-      <button class="money-subtab-btn ${settingsTab === 'issuer' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="issuer">発行者情報</button>
-      <button class="money-subtab-btn ${settingsTab === 'backup' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="backup">バックアップ</button>
-      <button class="money-subtab-btn ${settingsTab === 'theme' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="theme">テーマ</button>
-      <button class="money-subtab-btn ${settingsTab === 'priceList' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="priceList">単価表</button>
-      <button class="money-subtab-btn ${settingsTab === 'usage' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="usage">使い方</button>
+      <button type="button" class="money-subtab-btn ${settingsTab === 'template' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="template">工程テンプレート</button>
+      <button type="button" class="money-subtab-btn ${settingsTab === 'clients' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="clients">クライアント管理</button>
+      <button type="button" class="money-subtab-btn ${settingsTab === 'issuer' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="issuer">発行者情報</button>
+      <button type="button" class="money-subtab-btn ${settingsTab === 'backup' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="backup">バックアップ</button>
+      <button type="button" class="money-subtab-btn ${settingsTab === 'theme' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="theme">テーマ</button>
+      <button type="button" class="money-subtab-btn ${settingsTab === 'priceList' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="priceList">単価表</button>
+      <button type="button" class="money-subtab-btn ${settingsTab === 'usage' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="usage">使い方</button>
     </div>
     <div id="settingsSubContent"></div>
   </div>`;
@@ -1759,7 +1894,7 @@ function wireSettingsModal(overlay) {
 const ACCENT_PRESETS = [['ペリウィンクル','#687EE7'],['ブルー','#2979FF'],['ミント','#2BB673'],['ピンク','#F06292'],['コーラル','#FF8A65'],['バイオレット','#9575CD'],['ネイビー','#182842']];
 function themeSettingsHtml() {
   const selected=normalizeHex(state.settings.accentColor)||'#687EE7';
-  return `<h3 class="section-title">テーマカラー</h3><p class="field__hint">ボタン、リンク、選択中の表示に使う色を選べます。状態を表す色は変わりません。</p><div class="theme-presets">${ACCENT_PRESETS.map(([name,color])=>`<button class="theme-preset ${selected===color?'is-selected':''}" data-action="set-accent-color" data-color="${color}"><span style="background:${color}"></span>${name}</button>`).join('')}<button class="theme-preset theme-custom" id="themeCustomPicker"><span style="background:${selected}"></span>自由な色</button></div><div class="theme-current"><span>現在のカラー</span><code>${selected}</code></div>`;
+  return `<h3 class="section-title">テーマカラー</h3><p class="field__hint">ボタン、リンク、選択中の表示に使う色を選べます。状態を表す色は変わりません。</p><div class="theme-presets">${ACCENT_PRESETS.map(([name,color])=>`<button type="button" class="theme-preset ${selected===color?'is-selected':''}" data-action="set-accent-color" data-color="${color}"><span style="background:${color}"></span>${name}</button>`).join('')}<button type="button" class="theme-preset theme-custom" id="themeCustomPicker"><span style="background:${selected}"></span>自由な色</button></div><div class="theme-current"><span>現在のカラー</span><code>${selected}</code></div>`;
 }
 function wireThemeSettings(overlay) {
   const custom=$('#themeCustomPicker',overlay); if(!custom)return;
@@ -1767,11 +1902,11 @@ function wireThemeSettings(overlay) {
 }
 
 function usageSettingsHtml() {
-  return `<h3 class="section-title">使い方</h3><p class="field__hint">画面の主な機能をいつでも確認できます。</p><div class="settings-actions"><button class="btn btn--primary" data-action="restart-tour">使い方ツアーをもう一度見る</button></div>`;
+  return `<h3 class="section-title">使い方</h3><p class="field__hint">画面の主な機能をいつでも確認できます。</p><div class="settings-actions"><button type="button" class="btn btn--primary" data-action="restart-tour">使い方ツアーをもう一度見る</button></div>`;
 }
 
-function priceListSettingsHtml(){return `<h3 class="section-title">単価表</h3><p class="field__hint">見積作成時の選択肢です。金額やカテゴリはいつでも変更できます。</p><div class="price-list-editor" id="priceListEditor">${state.settings.priceList.map((item,idx)=>`<div class="price-list-row" data-idx="${idx}"><input class="input" data-field="category" value="${escapeHtml(item.category)}" aria-label="カテゴリ"><input class="input" data-field="name" value="${escapeHtml(item.name)}" aria-label="項目名"><select class="select" data-field="type"><option value="fixed" ${item.type!=='rate'?'selected':''}>金額</option><option value="rate" ${item.type==='rate'?'selected':''}>率（%）</option></select><input class="input" type="number" min="0" data-field="value" value="${item.type==='rate'?Math.round((item.rate||0)*100):Number(item.price)||0}" aria-label="金額または率"><button class="icon-btn" data-action="delete-price-item" data-idx="${idx}">${ICONS.trash}</button></div>`).join('')}</div><button class="btn btn--primary" data-action="add-price-item">${ICONS.plus}項目を追加</button>`;}
-function wirePriceListSettings(overlay){const editor=$('#priceListEditor',overlay);$all('.price-list-row',editor).forEach((row)=>{$all('[data-field]',row).forEach((input)=>input.addEventListener('change',()=>{const item=state.settings.priceList[Number(row.dataset.idx)];const field=input.dataset.field;if(field==='value'){if(item.type==='rate')item.rate=(Number(input.value)||0)/100;else item.price=Number(input.value)||0;}else item[field]=input.value;saveState();}));});}
+function priceListSettingsHtml(){return `<h3 class="section-title">ココナラ手数料</h3><p class="field__hint">ココナラ経由の案件から自動計上する手数料率です。改定時に変更してください。</p><div class="field platform-rate-field"><label class="field__label" for="platformFeeRatePercent">手数料率（%）</label><input class="input" id="platformFeeRatePercent" type="number" min="0" max="100" step="0.01" value="${Number(state.settings.platformFeeRate)*100}"></div><h3 class="section-title" style="margin-top:28px">単価表</h3><p class="field__hint">見積作成時の選択肢です。金額やカテゴリはいつでも変更できます。</p><div class="price-list-editor" id="priceListEditor">${state.settings.priceList.map((item,idx)=>`<div class="price-list-row" data-idx="${idx}"><input class="input" data-field="category" value="${escapeHtml(item.category)}" aria-label="カテゴリ"><input class="input" data-field="name" value="${escapeHtml(item.name)}" aria-label="項目名"><select class="select" data-field="type"><option value="fixed" ${item.type!=='rate'?'selected':''}>金額</option><option value="rate" ${item.type==='rate'?'selected':''}>率（%）</option></select><input class="input" type="number" min="0" data-field="value" value="${item.type==='rate'?Math.round((item.rate||0)*100):Number(item.price)||0}" aria-label="金額または率"><button type="button" class="icon-btn" data-action="delete-price-item" data-idx="${idx}">${ICONS.trash}</button></div>`).join('')}</div><button type="button" class="btn btn--primary" data-action="add-price-item">${ICONS.plus}項目を追加</button>`;}
+function wirePriceListSettings(overlay){const rateInput=$('#platformFeeRatePercent',overlay);if(rateInput)rateInput.addEventListener('change',()=>{const percent=Number(rateInput.value);if(!Number.isFinite(percent)||percent<0||percent>100){showToast('手数料率は0〜100%で入力してください','error');rateInput.value=state.settings.platformFeeRate*100;return;}state.settings.platformFeeRate=percent/100;syncAllAutoProjectExpenses();saveState();renderCurrentTab();showToast('手数料率を保存しました');});const editor=$('#priceListEditor',overlay);$all('.price-list-row',editor).forEach((row)=>{$all('[data-field]',row).forEach((input)=>input.addEventListener('change',()=>{const item=state.settings.priceList[Number(row.dataset.idx)];const field=input.dataset.field;if(field==='value'){if(item.type==='rate')item.rate=(Number(input.value)||0)/100;else item.price=Number(input.value)||0;}else item[field]=input.value;saveState();}));});}
 
 /* ---- 工程テンプレート ---- */
 function templateSettingsHtml() {
@@ -1961,13 +2096,13 @@ function backupSettingsHtml() {
     </div>
     <h3 class="section-title" style="margin-top:28px">完全バックアップ</h3>
     <p class="field__hint" style="margin-bottom:14px">作品・領収書画像も含めて1つのJSONに保存します。画像数によってファイルサイズが大きくなります。</p>
-    <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn--primary" data-action="export-full-backup">完全バックアップを書き出す（画像込み）</button><button class="btn" id="import-full-backup-btn">完全バックアップを読み込む</button><input type="file" id="import-full-backup-file" accept="application/json" style="display:none"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap"><button type="button" class="btn btn--primary" data-action="export-full-backup">完全バックアップを書き出す（画像込み）</button><button type="button" class="btn" id="import-full-backup-btn">完全バックアップを読み込む</button><input type="file" id="import-full-backup-file" accept="application/json" style="display:none"></div>
   `;
 }
 
 function blobToDataUrl(blob){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(reader.error);reader.readAsDataURL(blob);});}
 function dataUrlToBlob(url){const parts=String(url).split(',');const mime=(parts[0].match(/data:([^;]+)/)||[])[1]||'application/octet-stream';const bytes=atob(parts[1]||'');const arr=new Uint8Array(bytes.length);for(let i=0;i<bytes.length;i++)arr[i]=bytes.charCodeAt(i);return new Blob([arr],{type:mime});}
-async function exportFullBackup(){const images=await imageGetAll();const encoded=[];for(const row of images)encoded.push({id:row.id,dataUrl:await blobToDataUrl(row.blob)});const payload={format:'tsukuroute-full-backup',version:1,exportedAt:new Date().toISOString(),data:JSON.parse(JSON.stringify(state)),images:encoded};downloadBlob(new Blob([JSON.stringify(payload)],{type:'application/json'}),`tsukuroute-backup-${todayStr()}.json`);}
+async function exportFullBackup(){const images=await imageGetAll();const encoded=[];for(const row of images)encoded.push({id:row.id,dataUrl:await blobToDataUrl(row.blob)});state.settings.lastBackupAt=todayStr();saveState();const payload={format:'tsukuroute-full-backup',version:1,exportedAt:new Date().toISOString(),data:JSON.parse(JSON.stringify(state)),images:encoded};downloadBlob(new Blob([JSON.stringify(payload)],{type:'application/json'}),`tsukuroute-backup-${todayStr()}.json`);}
 async function importFullBackup(text){const payload=JSON.parse(text);if(!payload||payload.format!=='tsukuroute-full-backup'||!payload.data||!Array.isArray(payload.images))throw new Error('invalid backup');state=migrateData(payload.data);await imageReplaceAll(payload.images.map((row)=>({id:row.id,blob:dataUrlToBlob(row.dataUrl)})));saveState();applyAccentTheme(state.settings.accentColor);}
 
 function wireBackupSettings(overlay) {
@@ -1997,7 +2132,7 @@ function wireBackupSettings(overlay) {
 /* ===================== オンボーディング ===================== */
 
 function openWelcomeModal() {
-  const overlay = openModal(`<div class="welcome-modal"><div class="welcome-mark">${ICONS.check}</div><h2>${escapeHtml(APP_NAME)}へようこそ</h2><p>案件と納期から、工程をかんたんに自動計画。</p><p>売上・経費・請求書をひとつに整理。</p><p>納品作品は、そのままポートフォリオの記録に。</p><div class="welcome-actions"><button class="btn" id="welcome-empty">最初から使う</button></div></div>`, { narrow:true });
+  const overlay = openModal(`<div class="welcome-modal"><div class="welcome-mark">${ICONS.check}</div><h2>${escapeHtml(APP_NAME)}へようこそ</h2><p>案件と納期から、工程をかんたんに自動計画。</p><p>売上・経費・請求書をひとつに整理。</p><p>納品作品は、そのままポートフォリオの記録に。</p><div class="welcome-actions"><button type="button" class="btn" id="welcome-empty">最初から使う</button></div></div>`, { narrow:true });
   $('#welcome-empty', overlay).addEventListener('click', () => { state.settings.onboardingDone = true; saveState(); closeModal(); startTour(); });
 }
 
@@ -2022,7 +2157,7 @@ function showTourStep() {
   const popHeight=210;
   const top=rect.top>window.innerHeight/2?Math.max(16,rect.top-popHeight-14):Math.max(16,Math.min(window.innerHeight-popHeight-16,rect.bottom+14));
   const left=Math.max(16,Math.min(window.innerWidth-326,rect.left));
-  root.innerHTML = `<div class="tour-highlight" style="left:${rect.left-6}px;top:${rect.top-6}px;width:${rect.width+12}px;height:${rect.height+12}px"></div><div class="tour-popover" style="left:${left}px;top:${top}px"><div class="tour-step">${tourIndex+1} / ${TOUR_STEPS.length}</div><h3>${escapeHtml(step.title)}</h3><p>${escapeHtml(step.text)}</p><div><button class="text-link" data-action="skip-tour">スキップ</button><button class="btn btn--primary" data-action="next-tour">${tourIndex === TOUR_STEPS.length-1 ? '完了' : '次へ'}</button></div></div>`;
+  root.innerHTML = `<div class="tour-highlight" style="left:${rect.left-6}px;top:${rect.top-6}px;width:${rect.width+12}px;height:${rect.height+12}px"></div><div class="tour-popover" style="left:${left}px;top:${top}px"><div class="tour-step">${tourIndex+1} / ${TOUR_STEPS.length}</div><h3>${escapeHtml(step.title)}</h3><p>${escapeHtml(step.text)}</p><div><button type="button" class="text-link" data-action="skip-tour">スキップ</button><button type="button" class="btn btn--primary" data-action="next-tour">${tourIndex === TOUR_STEPS.length-1 ? '完了' : '次へ'}</button></div></div>`;
   document.body.appendChild(root);
 }
 
@@ -2030,6 +2165,7 @@ function showTourStep() {
 document.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
+  if (btn.tagName === 'BUTTON' && !btn.hasAttribute('type')) btn.type = 'button';
   const action = btn.dataset.action;
 
   switch (action) {
@@ -2077,7 +2213,7 @@ document.addEventListener('click', (e) => {
       const direction = action === 'calendar-next' ? 1 : -1;
       const anchor = parseDateStr(state.settings.calendarDate || todayStr());
       if (state.settings.calendarView === 'month') { anchor.setDate(1); anchor.setMonth(anchor.getMonth() + direction); }
-      else anchor.setDate(anchor.getDate() + direction * (state.settings.calendarView === 'week' ? 7 : 30));
+      else anchor.setDate(anchor.getDate() + direction * (state.settings.calendarView === 'today' ? 1 : state.settings.calendarView === 'week' ? 7 : 30));
       state.settings.calendarDate = toDateStr(anchor);
       saveState(); renderCalendar();
       break;
@@ -2091,6 +2227,7 @@ document.addEventListener('click', (e) => {
 
     case 'calendar-set-view':
       state.settings.calendarView=btn.dataset.view;
+      if (state.settings.calendarView === 'today') state.settings.calendarDate = todayStr();
       saveState(); renderCalendar();
       break;
 
@@ -2124,9 +2261,18 @@ document.addEventListener('click', (e) => {
     }
 
     case 'open-template-settings':
-      settingsTab = 'template';
-      openSettingsModal();
+      openSettingsModal({ initialTab:'template', stack:true, returnToProject:true });
       break;
+
+    case 'open-backup-settings':
+      openSettingsModal({ initialTab:'backup' });
+      break;
+
+    case 'toggle-withholding-help': {
+      const popover = $('.field-help-popover', btn.closest('.withholding-help-wrap'));
+      if (popover) popover.hidden = !popover.hidden;
+      break;
+    }
 
     case 'open-project':
       openProjectDetailModal(btn.dataset.projectId);
@@ -2138,6 +2284,7 @@ document.addEventListener('click', (e) => {
       const p = state.projects.find((x) => x.id === id);
       if (p) (p.imageIds || []).forEach((imgId) => imageDelete(imgId));
       state.invoices = state.invoices.filter((iv) => iv.projectId !== id);
+      state.expenses = state.expenses.filter((expense) => expense.autoProjectId !== id);
       state.projects = state.projects.filter((x) => x.id !== id);
       saveState();
       closeModal();
@@ -2170,13 +2317,17 @@ document.addEventListener('click', (e) => {
       break;
     }
 
+    case 'save-close-project':
+      saveState(); closeModal(); renderCurrentTab(); showToast('保存しました');
+      break;
+
     case 'add-step': {
       const p = state.projects.find((x) => x.id === btn.dataset.projectId);
       if (!p) break;
       const name = (window.prompt('工程名を入力してください', '新しい工程') || '').trim();
       if (!name) break;
       const lastDue = p.steps.length ? p.steps[p.steps.length - 1].dueDate : p.dueDate;
-      p.steps.push({ id: uuid(), name, dueDate: lastDue || todayStr(), done: false, doneAt: null });
+      p.steps.push({ id: uuid(), name, startDate: lastDue || todayStr(), dueDate: lastDue || todayStr(), days:1, done: false, doneAt: null });
       recomputeProjectStatus(p);
       saveState();
       refreshProjectDetail(document.getElementById('activeModalOverlay'), p.id);
@@ -2320,6 +2471,7 @@ document.addEventListener('click', (e) => {
       break;
 
     case 'edit-expense':
+      if ((state.expenses.find((expense)=>expense.id===btn.dataset.expenseId)||{}).autoProjectId) { showToast('案件側で自動管理されています', 'error'); break; }
       editingExpenseId = btn.dataset.expenseId;
       renderMoneyTab();
       break;
@@ -2372,6 +2524,7 @@ document.addEventListener('click', (e) => {
     case 'delete-expense': {
       if (!confirm('この経費を削除します。よろしいですか？')) break;
       const exp = state.expenses.find((x) => x.id === btn.dataset.expenseId);
+      if (exp && exp.autoProjectId) { showToast('案件側で自動管理されています', 'error'); break; }
       if (exp && exp.receiptImageId) imageDelete(exp.receiptImageId);
       state.expenses = state.expenses.filter((x) => x.id !== btn.dataset.expenseId);
       if (editingExpenseId === btn.dataset.expenseId) editingExpenseId = null;
@@ -2487,6 +2640,7 @@ function init() {
   document.title = `${APP_NAME} — 案件管理`;
   const appTitle = $('.app-header__title');
   if (appTitle) appTitle.textContent = APP_NAME;
+  if (shouldPersistLoadedState) { syncAllAutoProjectExpenses(); saveState(); }
   applyAccentTheme(state.settings.accentColor);
   initTabsNav();
   renderCurrentTab();

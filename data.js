@@ -32,7 +32,7 @@ const DEFAULT_PRICE_LIST = [
 DEFAULT_PRICE_LIST.push({ id:uuid(), category:'特殊', name:'特急対応（10日以内）', type:'rate', rate:0.3, price:30 });
 
 const EXPENSE_CATEGORIES = [
-  '消耗品費', '通信費', '取材費', '資料・書籍費', '外注費', '交際費', '旅費交通費', '雑費',
+  '消耗品費', '通信費', '取材費', '資料・書籍費', '外注費', '支払手数料', '交際費', '旅費交通費', '雑費',
 ];
 
 const WITHHOLDING_RATE = 0.1021;
@@ -137,6 +137,8 @@ function defaultData() {
       accentColor: '#687EE7',
       calendarView: 'month',
       calendarDate: null,
+      platformFeeRate: 0.22,
+      lastBackupAt: null,
       priceList: DEFAULT_PRICE_LIST.map((item)=>({ ...item })),
       defaultTemplate: DEFAULT_TEMPLATE.map((t) => ({ ...t })),
       issuer: {
@@ -155,18 +157,22 @@ function leastUsedProjectColor(projects) {
 }
 
 function migrateData(parsed) {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('invalid data');
   const base = defaultData();
   const merged = Object.assign({}, base, parsed || {});
   merged.settings = Object.assign({}, base.settings, (parsed && parsed.settings) || {});
   if (!/^#[0-9a-f]{6}$/i.test(merged.settings.accentColor || '')) merged.settings.accentColor = '#687EE7';
-  if (!['month', 'week', 'schedule'].includes(merged.settings.calendarView)) merged.settings.calendarView = 'month';
+  if (!['today', 'month', 'week', 'schedule'].includes(merged.settings.calendarView)) merged.settings.calendarView = 'month';
   if (merged.settings.calendarDate && !/^\d{4}-\d{2}-\d{2}$/.test(merged.settings.calendarDate)) merged.settings.calendarDate = null;
+  const platformFeeRate = Number(merged.settings.platformFeeRate);
+  merged.settings.platformFeeRate = Number.isFinite(platformFeeRate) && platformFeeRate >= 0 && platformFeeRate <= 1 ? platformFeeRate : base.settings.platformFeeRate;
+  if (merged.settings.lastBackupAt && !/^\d{4}-\d{2}-\d{2}$/.test(merged.settings.lastBackupAt)) merged.settings.lastBackupAt = null;
   merged.settings.issuer = Object.assign({}, base.settings.issuer, ((parsed && parsed.settings) && parsed.settings.issuer) || {});
   merged.settings.defaultTemplate = ((parsed && parsed.settings) && Array.isArray(parsed.settings.defaultTemplate))
     ? parsed.settings.defaultTemplate : base.settings.defaultTemplate;
   merged.settings.priceList = ((parsed && parsed.settings) && Array.isArray(parsed.settings.priceList)) ? parsed.settings.priceList.map((item)=>Object.assign({ id:uuid(), category:'基本料金', name:'', price:0, type:'fixed' },item)) : base.settings.priceList;
   merged.clients = Array.isArray(parsed && parsed.clients) ? parsed.clients.map((c) => Object.assign({ id: uuid(), name: '', templateOverride: null }, c)) : [];
-  merged.expenses = Array.isArray(parsed && parsed.expenses) ? parsed.expenses.map((e) => Object.assign({ id: uuid(), date: '', category: '雑費', amount: 0, memo: '', receiptImageId: null, createdAt: new Date().toISOString() }, e)) : [];
+  merged.expenses = Array.isArray(parsed && parsed.expenses) ? parsed.expenses.map((e) => Object.assign({ id: uuid(), date: '', category: '雑費', amount: 0, memo: '', receiptImageId: null, autoProjectId: null, createdAt: new Date().toISOString() }, e)) : [];
   merged.invoices = Array.isArray(parsed && parsed.invoices) ? parsed.invoices.map((iv) => Object.assign({ id: uuid(), number: '', projectId: null, issueDate: '', dueDate: '', clientName: '', honorific: '御中', subject: '', items: [], taxRate: DEFAULT_TAX_RATE, hasWithholding: false, notes: '', status: 'issued', createdAt: new Date().toISOString() }, iv, { items:Array.isArray(iv.items)?iv.items.map((item)=>Object.assign({name:'',qty:1,unit:'式',unitPrice:0},item,{unit:item.unit||'式'})):[] })) : [];
   merged.quotes = Array.isArray(parsed && parsed.quotes) ? parsed.quotes.map((q)=>Object.assign({ id:uuid(), number:'', issueDate:'', validUntil:'', clientId:'', clientName:'', honorific:'御中', subject:'', items:[], rushEnabled:false, rushRate:0.3, taxRate:0, notes:'', status:'draft', createdAt:new Date().toISOString() },q,{ items:Array.isArray(q.items)?q.items.map((item)=>Object.assign({name:'',qty:1,unit:'式',unitPrice:0},item,{unit:item.unit||'式'})):[] })) : [];
   merged.galleryExtras = Array.isArray(parsed && parsed.galleryExtras) ? parsed.galleryExtras.map((g) => Object.assign({ id: uuid(), imageId: null, title: '', clientName: '', orderedDate: g.createdAt ? toDateStr(new Date(g.createdAt)) : null, deliveredDate: null, fee: 0, createdAt: new Date().toISOString() }, g, { orderedDate: g.orderedDate || (g.createdAt ? toDateStr(new Date(g.createdAt)) : null) })) : [];
@@ -175,12 +181,15 @@ function migrateData(parsed) {
     const legacyColor = LEGACY_PROJECT_COLOR_MAP[String(raw.color || '').toLowerCase()];
     const validCustomColor = /^#[0-9a-f]{6}$/i.test(raw.color || '') ? String(raw.color).toUpperCase() : null;
     const color = legacyColor || validCustomColor || leastUsedProjectColor(merged.projects);
-    const steps = Array.isArray(raw.steps) ? raw.steps.map((step) => Object.assign({
-      id: uuid(), name: '', dueDate: raw.dueDate || '', days: 1, done: false, doneAt: null,
-    }, step)) : [];
+    const steps = Array.isArray(raw.steps) ? raw.steps.map((step) => {
+      const dueDate = step.dueDate || raw.dueDate || '';
+      return Object.assign({
+        id: uuid(), name: '', startDate: dueDate, dueDate, days: 1, done: false, doneAt: null,
+      }, step, { startDate: step.startDate || dueDate });
+    }) : [];
     merged.projects.push(Object.assign({
       id: uuid(), title: '', clientId: '', clientName: '', dueDate: '', fee: 0,
-      hasWithholding: false, memo: '', status: 'in_progress', steps: [], color,
+      hasWithholding: false, isCoconala: false, memo: '', status: 'in_progress', steps: [], color,
       paymentStatus: 'unbilled', paidDate: null, deliveredDate: null, imageIds: [],
       orderedDate: raw.createdAt ? toDateStr(new Date(raw.createdAt)) : null,
       createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
@@ -189,14 +198,24 @@ function migrateData(parsed) {
   return merged;
 }
 
+let shouldPersistLoadedState = false;
 function loadData() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultData();
+    if (!raw) { shouldPersistLoadedState = true; return defaultData(); }
     const parsed = JSON.parse(raw);
-    return migrateData(parsed);
+    try {
+      const migrated = migrateData(parsed);
+      shouldPersistLoadedState = true;
+      return migrated;
+    } catch (migrationError) {
+      shouldPersistLoadedState = false;
+      console.error('データ移行に失敗しました。保存済みデータは変更しません。', migrationError);
+      return parsed;
+    }
   } catch (e) {
-    console.error('データ読み込みに失敗しました。初期状態で起動します。', e);
+    shouldPersistLoadedState = false;
+    console.error('データ読み込みに失敗しました。保存済みデータは変更しません。', e);
     return defaultData();
   }
 }
@@ -212,8 +231,8 @@ function saveState() {
   }
 }
 
-// 読み込み時マイグレーションの結果を保存し、次回以降も同じ形式で扱う。
-saveState();
+// 正常に読み込めた場合だけ移行結果を保存する。失敗時は元の保存文字列を保持する。
+if (shouldPersistLoadedState) saveState();
 
 /* ===================== IndexedDB（画像） ===================== */
 let _dbPromise = null;
@@ -303,7 +322,7 @@ function getTemplateForClient(clientId) {
 }
 
 /**
- * 工程テンプレートと納期から、各工程の期限日を逆算する。
+ * 工程テンプレートと納期から、各工程の開始日・終了日を逆算する。
  * @returns {{steps: Array, startDate: string, isTight: boolean}}
  */
 function generateSteps(template, dueDateStr) {
@@ -311,8 +330,8 @@ function generateSteps(template, dueDateStr) {
   const n = list.length;
   const baseDays = list.reduce((sum, item) => sum + Math.max(1, Number(item.days) || 1), 0);
   const availableDays = Math.max(0, diffDays(dueDateStr, todayStr()));
-  const canFitMinimums = availableDays >= n;
-  const targetDays = Math.max(n, availableDays);
+  const canFitMinimums = availableDays + 1 >= n;
+  const targetDays = Math.max(n, availableDays + 1);
   const factor = targetDays / baseDays;
   const durations = list.map((item) => Math.max(1, Math.round(Math.max(1, Number(item.days) || 1) * factor)));
   let delta = targetDays - durations.reduce((sum, days) => sum + days, 0);
@@ -323,20 +342,20 @@ function generateSteps(template, dueDateStr) {
     else if (durations.slice(0, -1).every((days) => days === 1)) break;
   }
   if (delta !== 0) durations[n - 1] = Math.max(1, durations[n - 1] + delta);
+  const starts = new Array(n);
   const dues = new Array(n);
-  if (canFitMinimums) {
-    let cursor = todayStr();
-    durations.forEach((days, i) => { cursor = i === n - 1 ? dueDateStr : addDays(cursor, days); dues[i] = cursor; });
-  } else {
-    dues[n - 1] = dueDateStr;
-    for (let i = n - 2; i >= 0; i--) dues[i] = addDays(dues[i + 1], -durations[i + 1]);
+  let cursor = dueDateStr;
+  for (let i = n - 1; i >= 0; i -= 1) {
+    dues[i] = cursor;
+    starts[i] = addDays(cursor, -(durations[i] - 1));
+    cursor = addDays(starts[i], -1);
   }
   const steps = list.map((t, i) => ({
-    id: uuid(), name: t.name, dueDate: dues[i], days: durations[i], done: false, doneAt: null,
+    id: uuid(), name: t.name, startDate: starts[i], dueDate: dues[i], days: durations[i], done: false, doneAt: null,
   }));
-  const isTight = !canFitMinimums || availableDays < baseDays;
-  const isRelaxed = availableDays > baseDays;
-  return { steps, startDate: todayStr(), isTight, isRelaxed, factor, baseDays, availableDays };
+  const isTight = !canFitMinimums || availableDays + 1 < baseDays;
+  const isRelaxed = availableDays + 1 > baseDays;
+  return { steps, startDate: starts[0], isTight, isRelaxed, factor, baseDays, availableDays };
 }
 
 /* ===================== 案件の計算ヘルパー ===================== */
@@ -365,7 +384,44 @@ function toggleStep(project, stepId, done) {
     project.deliveredDate = todayStr();
   }
   recomputeProjectStatus(project);
+  syncAutoExpenseForProject(project);
   project.updatedAt = new Date().toISOString();
+}
+
+function platformFeeAmount(project) {
+  const rate = Number(state.settings.platformFeeRate);
+  return Math.floor((Number(project && project.fee) || 0) * (Number.isFinite(rate) ? rate : 0.22));
+}
+
+function syncAutoExpenseForProject(project) {
+  if (!project || !Array.isArray(state.expenses)) return;
+  const matches = state.expenses.filter((expense) => expense.autoProjectId === project.id);
+  if (!project.isCoconala || !project.deliveredDate) {
+    if (matches.length) state.expenses = state.expenses.filter((expense) => expense.autoProjectId !== project.id);
+    return;
+  }
+  const expense = matches[0] || {
+    id: uuid(), receiptImageId: null, autoProjectId: project.id, createdAt: new Date().toISOString(),
+  };
+  Object.assign(expense, {
+    date: project.deliveredDate,
+    category: '支払手数料',
+    amount: platformFeeAmount(project),
+    memo: `ココナラ手数料（${project.title}）`,
+    autoProjectId: project.id,
+    updatedAt: new Date().toISOString(),
+  });
+  if (!matches.length) state.expenses.push(expense);
+  if (matches.length > 1) {
+    const keepId = expense.id;
+    state.expenses = state.expenses.filter((item) => item.autoProjectId !== project.id || item.id === keepId);
+  }
+}
+
+function syncAllAutoProjectExpenses() {
+  state.projects.forEach(syncAutoExpenseForProject);
+  const projectIds = new Set(state.projects.map((project) => project.id));
+  state.expenses = state.expenses.filter((expense) => !expense.autoProjectId || projectIds.has(expense.autoProjectId));
 }
 
 function withholdingAmount(project) {
@@ -453,6 +509,8 @@ function downloadBlob(blob, filename) {
 }
 
 function exportBackupJson() {
+  state.settings.lastBackupAt = todayStr();
+  saveState();
   const data = JSON.parse(JSON.stringify(state));
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   downloadBlob(blob, `taskcanvas-backup-${todayStr()}.json`);
