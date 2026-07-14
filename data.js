@@ -188,11 +188,11 @@ function seedDemoContent() {
       color:values.color,paymentStatus:values.paymentStatus||'unbilled',paidDate:values.paymentStatus==='paid'?addDays(deliveredDate,21):null,deliveredDate,imageIds:[],createdAt:nowIso,updatedAt:nowIso};
   };
   demo.projects=[
-    makeProject({id:'demo-project-vtuber',title:'VTuberお披露目イラスト',clientId:'demo-client-vtuber',dueOffset:24,fee:65000,doneCount:2,color:'#AB47BC'}),
-    makeProject({id:'demo-project-ebook',title:'電子書籍カバーイラスト',clientId:'demo-client-pub',dueOffset:42,fee:48000,doneCount:1,color:'#2979FF'}),
+    makeProject({id:'demo-project-vtuber',title:'VTuberお披露目イラスト',clientId:'demo-client-vtuber',dueOffset:2,fee:65000,doneCount:2,color:'#AB47BC'}),
+    makeProject({id:'demo-project-ebook',title:'電子書籍カバーイラスト',clientId:'demo-client-pub',dueOffset:3,fee:48000,doneCount:1,color:'#2979FF'}),
     makeProject({id:'demo-project-apparel',title:'アパレルEC商品カット',clientId:'demo-client-fashion',dueOffset:61,fee:36000,doneCount:3,color:'#FF9800',paymentStatus:'unbilled'}),
     makeProject({id:'demo-project-vi',title:'企業VIキャラクターデザイン',clientId:'demo-client-ad',dueOffset:83,fee:120000,doneCount:1,color:'#00BCD4',hasWithholding:true}),
-    makeProject({id:'demo-project-game',title:'ゲーム内イベント限定カードイラスト',clientId:'demo-client-game',dueOffset:32,fee:90000,doneCount:2,color:'#4CAF50'}),
+    makeProject({id:'demo-project-game',title:'ゲーム内イベント限定カードイラスト',clientId:'demo-client-game',dueOffset:1,fee:90000,doneCount:3,color:'#4CAF50'}),
     makeProject({id:'demo-project-doujin',title:'同人誌表紙イラスト',clientId:'demo-client-vtuber',dueOffset:-28,deliveredOffset:-31,fee:35000,complete:true,color:'#FF5252',paymentStatus:'unbilled'}),
     makeProject({id:'demo-project-magazine',title:'季刊誌春号 扉絵イラスト',clientId:'demo-client-pub',dueOffset:-67,deliveredOffset:-70,fee:52000,complete:true,color:'#2979FF',paymentStatus:'billed',hasWithholding:true}),
     makeProject({id:'demo-project-campaign',title:'夏キャンペーンSNS広告イラスト',clientId:'demo-client-ad',dueOffset:-105,deliveredOffset:-108,fee:78000,complete:true,color:'#FFD600',paymentStatus:'paid',hasWithholding:true}),
