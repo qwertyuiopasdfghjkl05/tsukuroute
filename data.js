@@ -7,7 +7,11 @@
    ========================================================================= */
 
 /* ===================== 定数 ===================== */
-const STORAGE_KEY = 'taskcanvas-v2';
+const IS_DEMO_MODE = (()=>{
+  const params=new URLSearchParams(location.search||'');
+  return params.get('demo')==='1'||String(location.hash||'').replace(/^#/,'')==='demo';
+})();
+const STORAGE_KEY = IS_DEMO_MODE ? 'taskcanvas-v2-demo' : 'taskcanvas-v2';
 const CURRENT_DATA_VERSION = 3;
 const APP_NAME = 'つくルート';
 const PROJECT_COLORS = ['#FF5252', '#FF9800', '#FFD600', '#4CAF50', '#00BCD4', '#2979FF', '#AB47BC'];
@@ -15,7 +19,7 @@ const LEGACY_PROJECT_COLOR_MAP = {
   '#039be5':'#00BCD4', '#7986cb':'#687EE7', '#33b679':'#4CAF50', '#8e24aa':'#AB47BC',
   '#e67c73':'#FF5252', '#f6bf26':'#FFD600', '#f4511e':'#FF9800', '#0b8043':'#4CAF50', '#616161':'#687EE7',
 };
-const DB_NAME = 'taskcanvas-images';
+const DB_NAME = IS_DEMO_MODE ? 'taskcanvas-images-demo' : 'taskcanvas-images';
 const DB_VERSION = 1;
 const DB_STORE = 'images';
 
@@ -154,6 +158,71 @@ function defaultData() {
   };
 }
 
+function seedDemoContent() {
+  if(!IS_DEMO_MODE)throw new Error('Demo seed is only available in demo mode');
+  const demo=defaultData(),today=todayStr(),nowIso=new Date().toISOString();
+  demo.settings.onboardingDone=true;
+  demo.settings.demoSeeded=true;
+  demo.settings.demoImagesSeeded=false;
+  demo.settings.issuer={
+    name:'アトリエ・ソラ　水無瀬 詩織',businessName:'アトリエ・ソラ',address:'〒150-0001 東京都渋谷区神宮前1-2-3 ソラハイツ401',
+    tel:'03-1234-5678',email:'shiori.minase@example.com',invoiceRegNo:'',bankName:'そら銀行',bankBranch:'青空支店',
+    bankAccountType:'普通',bankAccountNumber:'1234567',bankAccountHolder:'ミナセ シオリ',
+  };
+  demo.clients=[
+    {id:'demo-client-pub',name:'星月出版株式会社',templateOverride:null},
+    {id:'demo-client-game',name:'株式会社ルミナスゲームズ',templateOverride:null},
+    {id:'demo-client-ad',name:'青葉クリエイティブ合同会社',templateOverride:null},
+    {id:'demo-client-fashion',name:'Lueur Apparel',templateOverride:null},
+    {id:'demo-client-vtuber',name:'天羽こはね（VTuber）',templateOverride:null},
+  ];
+  const clientById=new Map(demo.clients.map((client)=>[client.id,client]));
+  const makeProject=(values)=>{
+    const dueDate=addDays(today,values.dueOffset),steps=generateSteps(DEFAULT_TEMPLATE,dueDate).steps;
+    const doneCount=values.complete?steps.length:Math.max(0,Math.min(steps.length,values.doneCount||0));
+    steps.forEach((step,index)=>{step.done=index<doneCount;step.doneAt=step.done?addDays(today,-Math.max(1,doneCount-index+2))+'T09:00:00.000Z':null;});
+    const deliveredDate=values.complete?addDays(today,values.deliveredOffset):null;
+    const client=clientById.get(values.clientId);
+    return {id:values.id,title:values.title,clientId:values.clientId,clientName:client?client.name:'',orderedDate:addDays(dueDate,values.complete?-45:-30),dueDate,
+      fee:values.fee,hasWithholding:!!values.hasWithholding,platformId:values.platformId||null,isCoconala:false,memo:values.memo||'',status:values.complete?'done':'in_progress',steps,
+      color:values.color,paymentStatus:values.paymentStatus||'unbilled',paidDate:values.paymentStatus==='paid'?addDays(deliveredDate,21):null,deliveredDate,imageIds:[],createdAt:nowIso,updatedAt:nowIso};
+  };
+  demo.projects=[
+    makeProject({id:'demo-project-vtuber',title:'VTuberお披露目イラスト',clientId:'demo-client-vtuber',dueOffset:24,fee:65000,doneCount:2,color:'#AB47BC'}),
+    makeProject({id:'demo-project-ebook',title:'電子書籍カバーイラスト',clientId:'demo-client-pub',dueOffset:42,fee:48000,doneCount:1,color:'#2979FF'}),
+    makeProject({id:'demo-project-apparel',title:'アパレルEC商品カット',clientId:'demo-client-fashion',dueOffset:61,fee:36000,doneCount:3,color:'#FF9800',paymentStatus:'unbilled'}),
+    makeProject({id:'demo-project-vi',title:'企業VIキャラクターデザイン',clientId:'demo-client-ad',dueOffset:83,fee:120000,doneCount:1,color:'#00BCD4',hasWithholding:true}),
+    makeProject({id:'demo-project-game',title:'ゲーム内イベント限定カードイラスト',clientId:'demo-client-game',dueOffset:32,fee:90000,doneCount:2,color:'#4CAF50'}),
+    makeProject({id:'demo-project-doujin',title:'同人誌表紙イラスト',clientId:'demo-client-vtuber',dueOffset:-28,deliveredOffset:-31,fee:35000,complete:true,color:'#FF5252',paymentStatus:'unbilled'}),
+    makeProject({id:'demo-project-magazine',title:'季刊誌春号 扉絵イラスト',clientId:'demo-client-pub',dueOffset:-67,deliveredOffset:-70,fee:52000,complete:true,color:'#2979FF',paymentStatus:'billed',hasWithholding:true}),
+    makeProject({id:'demo-project-campaign',title:'夏キャンペーンSNS広告イラスト',clientId:'demo-client-ad',dueOffset:-105,deliveredOffset:-108,fee:78000,complete:true,color:'#FFD600',paymentStatus:'paid',hasWithholding:true}),
+    makeProject({id:'demo-project-costume',title:'VTuber新衣装立ち絵デザイン',clientId:'demo-client-vtuber',dueOffset:-145,deliveredOffset:-148,fee:85000,complete:true,color:'#AB47BC',paymentStatus:'paid'}),
+  ];
+  const expenseRows=[
+    ['ソフトウェア・サブスク',980,'CLIP STUDIO PAINT EX',-6],['ソフトウェア・サブスク',6480,'Adobe Creative Cloud',-13],
+    ['資料・書籍費',3960,'衣装デザイン資料集',-19],['消耗品費',2840,'スケッチブック・替芯',-27],['旅費交通費',1240,'打ち合わせ交通費',-35],
+    ['通信費',3200,'制作資料用クラウドストレージ',-48],['資料・書籍費',2420,'背景パース資料',-62],['取材費',1850,'企画展 入場料',-79],
+    ['消耗品費',5680,'ペンタブレット替え芯・保護シート',-108],['交際費',3600,'クライアント打ち合わせ',-137],
+  ];
+  demo.expenses=expenseRows.map((row,index)=>({id:`demo-expense-${index+1}`,date:addDays(today,row[3]),category:row[0],amount:row[1],memo:row[2],receiptImageId:null,autoProjectId:null,autoRecurringId:null,createdAt:nowIso}));
+  demo.recurringExpenses=[
+    {id:'demo-recurring-clip',name:'CLIP STUDIO PAINT EX',category:'ソフトウェア・サブスク',amount:980,frequency:'monthly',monthOfYear:1,dayOfMonth:5,memo:'制作ソフト',startMonth:today.slice(0,7),active:true},
+    {id:'demo-recurring-adobe',name:'Adobe Creative Cloud',category:'ソフトウェア・サブスク',amount:6480,frequency:'monthly',monthOfYear:1,dayOfMonth:12,memo:'デザイン制作ソフト',startMonth:today.slice(0,7),active:true},
+    {id:'demo-recurring-cloud',name:'クラウドストレージ',category:'通信費',amount:1300,frequency:'monthly',monthOfYear:1,dayOfMonth:20,memo:'納品データ保管',startMonth:today.slice(0,7),active:true},
+  ];
+  const issuerSnapshot=JSON.parse(JSON.stringify(demo.settings.issuer));
+  demo.invoices=[
+    {id:'demo-invoice-magazine',number:`${today.slice(0,4)}-001`,projectId:'demo-project-magazine',issueDate:addDays(today,-66),dueDate:addDays(today,-36),clientName:'星月出版株式会社',honorific:'御中',subject:'季刊誌春号 扉絵イラスト制作費',items:[{name:'扉絵イラスト制作',qty:1,unit:'式',unitPrice:52000}],taxRate:.1,hasWithholding:true,notes:'お振込み手数料はご負担ください。',status:'issued',issuerSnapshot,createdAt:nowIso},
+    {id:'demo-invoice-campaign',number:`${today.slice(0,4)}-002`,projectId:'demo-project-campaign',issueDate:addDays(today,-104),dueDate:addDays(today,-74),clientName:'青葉クリエイティブ合同会社',honorific:'御中',subject:'夏キャンペーンSNS広告イラスト制作費',items:[{name:'広告イラスト制作',qty:3,unit:'点',unitPrice:26000}],taxRate:.1,hasWithholding:true,notes:'ご入金ありがとうございました。',status:'paid',issuerSnapshot,createdAt:nowIso},
+    {id:'demo-invoice-costume',number:`${today.slice(0,4)}-003`,projectId:'demo-project-costume',issueDate:addDays(today,-144),dueDate:addDays(today,-114),clientName:'天羽こはね（VTuber）',honorific:'様',subject:'新衣装立ち絵デザイン制作費',items:[{name:'新衣装立ち絵デザイン',qty:1,unit:'式',unitPrice:85000}],taxRate:0,hasWithholding:false,notes:'ご入金ありがとうございました。',status:'paid',issuerSnapshot,createdAt:nowIso},
+  ];
+  demo.quotes=[
+    {id:'demo-quote-vi',number:`Q${today.slice(0,4)}-001`,issueDate:addDays(today,-8),validUntil:addDays(today,22),clientId:'demo-client-ad',clientName:'青葉クリエイティブ合同会社',honorific:'御中',subject:'企業VIキャラクターデザイン',items:[{name:'キャラクターデザイン',qty:1,unit:'式',unitPrice:80000},{name:'表情差分',qty:4,unit:'点',unitPrice:5000}],rushEnabled:false,rushRate:.3,taxRate:.1,notes:'修正はラフ段階で2回まで含みます。',status:'sent',issuerSnapshot,createdAt:nowIso},
+    {id:'demo-quote-stream',number:`Q${today.slice(0,4)}-002`,issueDate:today,validUntil:addDays(today,14),clientId:'demo-client-vtuber',clientName:'天羽こはね（VTuber）',honorific:'様',subject:'配信用キービジュアル',items:[{name:'全身イラスト',qty:1,unit:'式',unitPrice:45000},{name:'背景デザイン',qty:1,unit:'式',unitPrice:15000}],rushEnabled:false,rushRate:.3,taxRate:0,notes:'商用利用料を含みます。',status:'draft',issuerSnapshot:null,createdAt:nowIso},
+  ];
+  return demo;
+}
+
 function leastUsedProjectColor(projects) {
   const counts = Object.fromEntries(PROJECT_COLORS.map((color) => [color, 0]));
   (projects || []).forEach((p) => { if (counts[p.color] !== undefined) counts[p.color] += 1; });
@@ -283,7 +352,9 @@ function loadData() {
   }
 }
 
-let state = loadData();
+let state;
+if(IS_DEMO_MODE&&localStorage.getItem(STORAGE_KEY)===null){shouldPersistLoadedState=true;state=seedDemoContent();}
+else state=loadData();
 
 function saveState() {
   try {

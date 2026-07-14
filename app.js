@@ -513,6 +513,45 @@ function openAvatarCropModal(file){
   $('#avatar-crop-save',overlay).addEventListener('click',()=>{if(!image.naturalWidth)return;const button=$('#avatar-crop-save',overlay);button.disabled=true;const m=metrics();if(displaySize!==m.size)render();const canvas=document.createElement('canvas');canvas.width=512;canvas.height=512;const ratio=512/m.diameter,ctx=canvas.getContext('2d');ctx.fillStyle='#FFFFFF';ctx.fillRect(0,0,512,512);ctx.drawImage(image,(parseFloat(image.style.left)-m.left)*ratio,(parseFloat(image.style.top)-m.left)*ratio,parseFloat(image.style.width)*ratio,parseFloat(image.style.height)*ratio);canvas.toBlob(async(blob)=>{if(!blob){button.disabled=false;showToast('画像を切り出せませんでした','error');return;}try{const old=state.settings.avatarImageId,newId=await imageSave(blob);state.settings.avatarImageId=newId;saveState();if(old)await imageDelete(old);cleanup();closeModal();renderHome();showToast('アバターを変更しました');}catch(error){console.error(error);button.disabled=false;showToast('画像を保存できませんでした','error');}},'image/jpeg',.9);});
 }
 
+function demoPlaceholderBlob(title,index) {
+  return new Promise((resolve,reject)=>{
+    const canvas=document.createElement('canvas');canvas.width=960;canvas.height=720;const ctx=canvas.getContext('2d');
+    const palettes=[['#687EE7','#F6A1C4'],['#00B8D9','#6FD6A7'],['#FF8A00','#FFC400'],['#7C4DFF','#7DDCF0'],['#FF4D8D','#FFB080'],['#2979FF','#B8A4F5']];
+    const colors=palettes[index%palettes.length],gradient=ctx.createLinearGradient(0,0,960,720);gradient.addColorStop(0,colors[0]);gradient.addColorStop(1,colors[1]);ctx.fillStyle=gradient;ctx.fillRect(0,0,960,720);
+    ctx.globalAlpha=.22;ctx.fillStyle='#FFFFFF';ctx.beginPath();ctx.arc(760,130,190,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(150,650,260,0,Math.PI*2);ctx.fill();
+    ctx.globalAlpha=.18;ctx.save();ctx.translate(480,360);ctx.rotate(-.18);ctx.fillRect(-250,-155,500,310);ctx.restore();ctx.globalAlpha=1;
+    ctx.fillStyle='#FFFFFF';ctx.font='700 42px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(title,480,340,760);
+    ctx.font='600 20px sans-serif';ctx.fillText('TSUKUROUTE  DEMO WORK',480,400);
+    canvas.toBlob((blob)=>blob?resolve(blob):reject(new Error('デモ画像を生成できませんでした')),'image/jpeg',.88);
+  });
+}
+
+async function seedDemoImages() {
+  if(!IS_DEMO_MODE||state.settings.demoImagesSeeded)return;
+  const targets=['demo-project-vtuber','demo-project-ebook','demo-project-apparel','demo-project-vi','demo-project-game','demo-project-doujin'];
+  const created=[];
+  for(let index=0;index<targets.length;index+=1){
+    const project=state.projects.find((item)=>item.id===targets[index]);if(!project)continue;
+    const imageId=await imageSave(await demoPlaceholderBlob(project.title,index));project.imageIds=[imageId];created.push(imageId);
+  }
+  state.settings.demoImagesSeeded=true;saveState();renderCurrentTab();
+  return created;
+}
+
+async function resetDemoData() {
+  if(!IS_DEMO_MODE)throw new Error('Demo reset is only available in demo mode');
+  if(!confirm('デモで入力した内容を消去し、最初のサンプルデータに戻します。よろしいですか？'))return;
+  localStorage.removeItem(STORAGE_KEY);
+  await imageReplaceAll([]);
+  state=seedDemoContent();
+  generateRecurringExpensesThroughCurrentMonth();
+  syncAllAutoProjectExpenses();
+  saveState();
+  await seedDemoImages();
+  currentTab='home';moneySubTab='ledger';switchTab('home');
+  showToast('デモデータを初期状態に戻しました');
+}
+
 function projectCardHtml(p) {
   const progress = projectProgress(p);
   const next = projectNextStep(p);
@@ -2370,6 +2409,10 @@ document.addEventListener('click', (e) => {
   const action = btn.dataset.action;
 
   switch (action) {
+    case 'reset-demo-data':
+      if(IS_DEMO_MODE)resetDemoData().catch((error)=>{console.error(error);showToast('デモデータをリセットできませんでした','error');});
+      break;
+
     case 'close-modal':
       closeModal();
       break;
@@ -2946,6 +2989,7 @@ function initTabsNav() {
 
 function init() {
   document.title = `${APP_NAME} — 案件管理`;
+  if(IS_DEMO_MODE){document.documentElement.classList.add('demo-mode');const banner=$('#demoBanner');if(banner)banner.hidden=false;}
   const appTitle = $('.app-header__title');
   if (appTitle) appTitle.textContent = APP_NAME;
   if (shouldPersistLoadedState) { syncAllAutoProjectExpenses(); generateRecurringExpensesThroughCurrentMonth(); saveState(); }
@@ -2955,6 +2999,7 @@ function init() {
   const onSystemAppearanceChange=()=>{if(state.settings.appearance==='system')applyAppearance();};
   if(appearanceMedia.addEventListener)appearanceMedia.addEventListener('change',onSystemAppearanceChange);else appearanceMedia.addListener(onSystemAppearanceChange);
   renderCurrentTab();
+  if(IS_DEMO_MODE)seedDemoImages().catch((error)=>console.error('デモ画像の生成に失敗しました',error));
   let wasMobile=window.matchMedia('(max-width: 767px)').matches;
   window.addEventListener('resize',()=>{const isMobile=window.matchMedia('(max-width: 767px)').matches;if(isMobile!==wasMobile){wasMobile=isMobile;if(currentTab==='calendar')renderCalendar();}const modal=document.getElementById('activeModalOverlay');if(modal)fitA4Preview(modal);fitDocumentMiniatures(document);});
   const hasExistingData = state.projects.length || state.clients.length || state.expenses.length || state.recurringExpenses.length || state.invoices.length || state.galleryExtras.length;

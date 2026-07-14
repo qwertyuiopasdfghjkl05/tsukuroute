@@ -168,6 +168,13 @@ h1, h2, h3, h4 { margin: 0; font-weight: 500; }
   flex-direction: column;
 }
 
+.demo-banner[hidden] { display:none; }
+.demo-banner { position:sticky; top:0; z-index:80; width:100%; min-height:52px; padding:7px 14px; display:flex; align-items:center; justify-content:center; gap:14px; border-bottom:1px solid rgba(104,126,231,.22); background:#F1F3FF; color:#344054; font-size:12px; line-height:1.45; text-align:center; }
+.demo-banner strong { color:var(--accent); }
+.demo-banner__reset { flex:0 0 auto; min-height:32px; padding:5px 10px; border:1px solid rgba(104,126,231,.3); border-radius:8px; background:#fff; color:var(--accent); font:inherit; font-weight:700; cursor:pointer; }
+html[data-theme="dark"] .demo-banner { border-color:#38415A; background:#202638; color:#D5DAE6; }
+html[data-theme="dark"] .demo-banner__reset { border-color:#4A5573; background:#171B25; }
+
 .app-header {
   display: flex;
   align-items: center;
@@ -1349,6 +1356,8 @@ html[data-theme="dark"] .color-swatch-add { border:1px solid rgba(255,255,255,.8
   .settings-btn.is-active { background:var(--accent-grad-soft); color:var(--nav-accent); }
   .app-main { width:calc(100% - 224px); height:100vh; margin-left:224px; min-width:0; overflow-y:auto; overflow-x:hidden; background:var(--bg); }
   .tabbar { display:none !important; }
+  html.demo-mode .app-header { top:52px; height:calc(100vh - 52px); }
+  html.demo-mode .app-main { height:calc(100vh - 52px); }
 }
 
 @media (max-width:767px) {
@@ -1372,6 +1381,9 @@ html[data-theme="dark"] .color-swatch-add { border:1px solid rgba(255,255,255,.8
   .progress-ring strong { font-size:28px; }
   .home-business-grid { grid-column:auto; grid-template-columns:1fr 1fr; gap:12px; }
   .business-card { min-height:98px; }
+  html.demo-mode .app-header { top:52px; }
+  .demo-banner { height:52px; justify-content:space-between; gap:8px; padding:5px 9px; font-size:10.5px; text-align:left; }
+  .demo-banner__reset { min-height:34px; max-width:112px; padding:4px 7px; white-space:normal; line-height:1.25; }
 }
 
 html[data-theme="dark"] .app-header { background:#0F1216; color:#667085; border-color:#2A3039; box-shadow:2px 0 10px rgba(0,0,0,.18); }
