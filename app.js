@@ -181,6 +181,21 @@ function stepPeriodLabel(step, withYear) {
   if (start === end) return formatJP(end, { withYear:!!withYear });
   return `${formatJP(start, { withYear:!!withYear })}〜${formatJP(end, { withYear:!!withYear })}`;
 }
+function formatShortDate(dateStr) {
+  const date=parseDateStr(dateStr); return date && !isNaN(date.getTime()) ? `${date.getMonth()+1}/${date.getDate()}` : '—';
+}
+function projectKeyDates(project) {
+  const steps=project.steps||[];
+  const rough=steps.find((step)=>String(step.name||'').includes('ラフ提出')) || steps.find((step)=>String(step.name||'').includes('ラフ'));
+  const delivery=steps.find((step)=>String(step.name||'').includes('納品'));
+  return { rough, delivery, deliveryDate:(delivery&&delivery.dueDate)||project.dueDate||'' };
+}
+function sortProjectStepsByStartDate(project) {
+  project.steps = (project.steps || []).map((step,index)=>({step,index})).sort((a,b)=>{
+    const aDate=stepStartDate(a.step)||'9999-12-31'; const bDate=stepStartDate(b.step)||'9999-12-31';
+    return aDate.localeCompare(bDate) || String(a.step.dueDate||'').localeCompare(String(b.step.dueDate||'')) || a.index-b.index;
+  }).map((item)=>item.step);
+}
 function projectStepsForDate(dateStr, includeOverdue) {
   const items = [];
   state.projects.forEach((project) => (project.steps || []).forEach((step) => {
@@ -263,7 +278,7 @@ function calendarPeriodTitle(view, anchor) {
 
 function calendarToolbarHtml(view, anchor, mobile) {
   const anchorDate=parseDateStr(anchor); const title=mobile&&view!=='today'?`${anchorDate.getFullYear()}年${anchorDate.getMonth()+1}月`:calendarPeriodTitle(view,anchor);
-  const views=[['today','今日'],['month','月'],['week','週'],['schedule','予定']];
+  const views=[['today','リスト'],['month','月'],['week','週'],['schedule','予定']];
   const navigation=view==='today'?'':`<button type="button" class="icon-btn" data-action="calendar-prev" aria-label="前の期間">${arrowLeftSvg()}</button><button type="button" class="icon-btn" data-action="calendar-next" aria-label="次の期間">${arrowRightSvg()}</button>`;
   return `<div class="calendar-toolbar"><div class="calendar-toolbar__left"><button type="button" class="btn calendar-today-btn" data-action="calendar-today">今日</button>${navigation}<h1 class="calendar-period-title">${escapeHtml(title)}</h1></div><select class="select calendar-view-select" id="calendarViewSelect" aria-label="カレンダー表示">${views.map(([value,label])=>`<option value="${value}" ${view===value?'selected':''}>${label}</option>`).join('')}</select><div class="calendar-mobile-segment" role="group" aria-label="カレンダー表示">${views.map(([value,label])=>`<button type="button" class="${view===value?'is-active':''}" data-action="calendar-set-view" data-view="${value}">${label}</button>`).join('')}</div></div>`;
 }
@@ -393,7 +408,7 @@ function renderHome() {
   const thisMonthTotal = projects.filter((p) => p.deliveredDate && parseDateStr(p.deliveredDate).getFullYear() === now.getFullYear() && parseDateStr(p.deliveredDate).getMonth() === now.getMonth()).reduce((s,p) => s+(p.fee||0),0);
   const monthExpenses = state.expenses.filter((e) => e.date && parseDateStr(e.date).getFullYear() === now.getFullYear() && parseDateStr(e.date).getMonth() === now.getMonth()).length;
   const todayTasks=todayItems.length;
-  const hasUserData = state.projects.length || state.clients.length || state.expenses.length || state.invoices.length || state.quotes.length || state.galleryExtras.length;
+  const hasUserData = state.projects.length || state.clients.length || state.expenses.length || state.recurringExpenses.length || state.invoices.length || state.quotes.length || state.galleryExtras.length;
   const backupDays = state.settings.lastBackupAt ? diffDays(todayS, state.settings.lastBackupAt) : null;
   const showBackupReminder = hasUserData && (backupDays === null || backupDays >= 7);
   const backupReminder = showBackupReminder ? `<button type="button" class="backup-reminder-chip" data-action="open-backup-settings">${backupDays === null ? 'まだバックアップがありません。' : `前回のバックアップから ${backupDays}日経っています。`} 設定→バックアップから保存しましょう</button>` : '';
@@ -423,6 +438,7 @@ function projectCardHtml(p) {
   const progress = projectProgress(p);
   const next = projectNextStep(p);
   const overdue = next && diffDays(next.dueDate, todayStr()) < 0;
+  const keyDates = projectKeyDates(p);
   return `
   <div class="card project-card" style="border-left-color:${p.color}" data-action="open-project" data-project-id="${p.id}">
     <div class="project-card__top">
@@ -433,9 +449,10 @@ function projectCardHtml(p) {
       ${statusBadgeHtml(p)}
     </div>
     <div class="progress-bar"><div class="progress-bar__fill ${p.status === 'done' ? 'is-done' : ''}" style="width:${progress}%"></div></div>
-    <div class="project-card__foot">
-      <span>次の工程: ${next ? escapeHtml(next.name) : 'なし'}</span>
-      <span class="project-card__due ${overdue ? 'is-overdue' : ''}">${p.dueDate ? '納期 ' + formatJP(p.dueDate) : ''}</span>
+    <div class="project-card__foot project-card__foot--milestones">
+      <strong class="project-next-step ${overdue ? 'is-overdue' : ''}">次: ${next ? `${escapeHtml(next.name)} ${formatShortDate(stepStartDate(next))}` : '全工程完了'}</strong>
+      <span>ラフ提出: ${formatShortDate(keyDates.rough&&keyDates.rough.dueDate)}</span>
+      <span class="project-delivery-date">⚑ 納品: ${formatShortDate(keyDates.deliveryDate)}</span>
     </div>
   </div>`;
 }
@@ -479,6 +496,7 @@ function projectRowHtml(p) {
   const progress = projectProgress(p);
   const next = projectNextStep(p);
   const overdue = next && diffDays(next.dueDate, todayStr()) < 0;
+  const keyDates = projectKeyDates(p);
   return `
   <div class="project-row" style="border-left-color:${p.color}" data-action="open-project" data-project-id="${p.id}">
     <div class="project-row__main">
@@ -488,12 +506,13 @@ function projectRowHtml(p) {
         <span class="badge badge--${p.paymentStatus}">${PAYMENT_STATUS_LABEL[p.paymentStatus]}</span>
       </div>
       <div class="project-row__client">${escapeHtml(p.clientName || 'クライアント未設定')}</div>
+      <div class="project-row__rough">ラフ提出: ${formatShortDate(keyDates.rough&&keyDates.rough.dueDate)}</div>
     </div>
     <div class="project-row__progress">
-      <div class="project-row__progress-label">${progress}% ・ ${next ? escapeHtml(next.name) : '全工程完了'}</div>
+      <div class="project-row__progress-label"><strong>${next ? `次: ${escapeHtml(next.name)} ${formatShortDate(stepStartDate(next))}` : '全工程完了'}</strong><span>${progress}%</span></div>
       <div class="progress-bar"><div class="progress-bar__fill ${p.status === 'done' ? 'is-done' : ''}" style="width:${progress}%"></div></div>
     </div>
-    <div class="project-row__due ${overdue ? 'is-overdue' : ''}">${p.dueDate ? formatJP(p.dueDate) : ''}</div>
+    <div class="project-row__due ${overdue ? 'is-overdue' : ''}">⚑ 納品: ${formatShortDate(keyDates.deliveryDate)}</div>
   </div>`;
 }
 
@@ -623,6 +642,11 @@ function openNewProjectModal() {
     $('#pf-color-swatches', overlay).innerHTML = colorSwatchesHtml(selectedColor, 'new-project');
   });
 
+  function renderDraftStepsPreview() {
+    const previewEl = $('#pf-steps-preview', overlay);
+    previewEl.innerHTML = draftSteps.map((s, index) => `<div class="step-preview-row"><span>${escapeHtml(s.name)}</span><label>開始<input class="input" type="date" data-pf-step-start="${index}" value="${s.startDate}"></label><span>〜</span><label>終了<input class="input" type="date" data-pf-step-due="${index}" value="${s.dueDate}"></label></div>`).join('');
+  }
+
   function updatePreview() {
     const due = dueInput.value;
     const previewEl = $('#pf-steps-preview', overlay);
@@ -637,7 +661,7 @@ function openNewProjectModal() {
     const template = getTemplateForClient(clientId);
     const { steps, isTight, isRelaxed } = generateSteps(template, due);
     draftSteps = steps;
-    previewEl.innerHTML = steps.map((s, index) => `<div class="step-preview-row"><span>${escapeHtml(s.name)}</span><label>開始<input class="input" type="date" data-pf-step-start="${index}" value="${s.startDate}"></label><span>〜</span><label>終了<input class="input" type="date" data-pf-step-due="${index}" value="${s.dueDate}"></label></div>`).join('');
+    renderDraftStepsPreview();
     warnEl.innerHTML = isTight ? warningBoxHtml('納期までの日数が基準日程より短いため、工程を圧縮しました。スケジュールがタイトです。') : (isRelaxed ? `<div class="relaxed-box">納期まで余裕があるため、ゆとりを持たせた日程を自動設定しました</div>` : '');
   }
 
@@ -671,6 +695,8 @@ function openNewProjectModal() {
       return;
     }
     step.startDate = nextStart; step.dueDate = nextDue; step.days = diffDays(nextDue, nextStart) + 1;
+    draftSteps = draftSteps.map((item,index)=>({item,index})).sort((a,b)=>String(a.item.startDate||'9999-12-31').localeCompare(String(b.item.startDate||'9999-12-31'))||a.index-b.index).map((entry)=>entry.item);
+    renderDraftStepsPreview();
   });
   overlay.addEventListener('modalrestored', updatePreview);
 
@@ -824,10 +850,12 @@ function projectDetailHtml(p) {
 
 function stepRowHtml(s) {
   const overdue = !s.done && diffDays(s.dueDate, todayStr()) < 0;
+  const isDelivery = String(s.name || '').includes('納品');
   return `
   <div class="step-check-row ${s.done ? 'is-done' : ''} ${overdue ? 'is-overdue' : ''}" data-step-id="${s.id}">
     <button class="checkbox ${s.done ? 'is-checked' : ''}" type="button" data-action="toggle-step-detail" data-step-id="${s.id}">${s.done ? ICONS.check : ''}</button>
-    <div class="step-check-row__name">${escapeHtml(s.name)}</div>
+    <div class="step-order-controls"><button type="button" data-action="move-step-up" data-step-id="${s.id}" aria-label="上へ移動">↑</button><button type="button" data-action="move-step-down" data-step-id="${s.id}" aria-label="下へ移動">↓</button></div>
+    <div class="step-check-row__name">${isDelivery ? '<span class="delivery-step-marker" aria-label="納品工程">⚑</span>' : ''}${escapeHtml(s.name)}</div>
     <div class="step-check-row__dates"><label>開始<input type="date" value="${stepStartDate(s)}" data-action="edit-step-date" data-step-date-field="startDate" data-step-id="${s.id}"></label><span>〜</span><label>終了<input type="date" value="${s.dueDate}" data-action="edit-step-date" data-step-date-field="dueDate" data-step-id="${s.id}"></label></div>
     <button class="icon-btn step-check-row__remove btn--sm" type="button" data-action="remove-step" data-step-id="${s.id}" title="削除">${ICONS.trash}</button>
   </div>`;
@@ -901,6 +929,7 @@ function wireProjectDetailEvents(overlay, projectId) {
         return;
       }
       step.startDate = nextStart; step.dueDate = nextDue; step.days = diffDays(nextDue, nextStart) + 1;
+      sortProjectStepsByStartDate(p);
       p.updatedAt = new Date().toISOString();
       saveState(); renderCurrentTab();
       refreshProjectDetail(overlay, projectId);
@@ -943,6 +972,7 @@ function refreshProjectDetail(overlay, projectId) {
 /* ===================== お金タブ ===================== */
 let moneySubTab = 'ledger';
 let moneyYear = new Date().getFullYear();
+let ledgerMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let expenseCategoryFilter = '__all__';
 let editingExpenseId = null;
 
@@ -990,9 +1020,12 @@ function ledgerHtml(year) {
   const monthly = Array.from({ length: 12 }, (_, month) => projects.filter((p) => parseDateStr(p.deliveredDate).getMonth() === month).reduce((sum, p) => sum + (p.fee || 0), 0));
   const max = Math.max(1, ...monthly);
   const total = monthly.reduce((sum, value) => sum + value, 0);
+  const selectedYear=ledgerMonth.getFullYear(); const selectedMonth=ledgerMonth.getMonth();
+  const selectedTotal=state.projects.filter((p)=>p.deliveredDate&&parseDateStr(p.deliveredDate).getFullYear()===selectedYear&&parseDateStr(p.deliveredDate).getMonth()===selectedMonth).reduce((sum,p)=>sum+(p.fee||0),0);
   return `
+    <section class="ledger-month-hero"><button type="button" class="icon-btn" data-action="ledger-month-prev" aria-label="前月">${arrowLeftSvg()}</button><div><span>${selectedYear}年${selectedMonth+1}月の売上</span><strong>${formatMoney(selectedTotal)}</strong></div><button type="button" class="icon-btn" data-action="ledger-month-next" aria-label="次月">${arrowRightSvg()}</button></section>
     <div class="summary-tile annual-total"><div class="summary-tile__label">${year}年の売上合計</div><div class="summary-tile__value">${formatMoney(total)}</div></div>
-    <div class="sales-chart sales-chart--12">${monthly.map((value, month) => `<div class="sales-chart__col"><div class="sales-chart__bar-wrap"><div class="sales-chart__bar" style="height:${Math.max(3, value / max * 100)}%" data-tooltip="${formatMoney(value)}"></div></div><div class="sales-chart__label">${month + 1}月</div></div>`).join('')}</div>
+    <div class="sales-chart sales-chart--12">${monthly.map((value, month) => `<button type="button" class="sales-chart__col ${selectedYear===year&&selectedMonth===month?'is-selected':''}" data-action="select-ledger-month" data-year="${year}" data-month="${month}"><div class="sales-chart__bar-wrap"><div class="sales-chart__bar" style="height:${Math.max(3, value / max * 100)}%" data-tooltip="${formatMoney(value)}"></div></div><div class="sales-chart__label">${month + 1}月</div></button>`).join('')}</div>
     <div class="info-box">確定申告では売上は入金日ではなく「納品日（役務提供完了日）」に計上します（発生主義）。納期より早く納めた場合は、実際の納品日の月の売上になります。ココナラ等の手数料は売上から差し引かず、「支払手数料」として経費に計上します（総額主義）。</div>
     ${projects.length === 0 ? `<p class="field__hint">この年に計上された売上はありません。</p>` : `
     <div class="table-wrap"><table class="data-table">
@@ -1031,6 +1064,7 @@ function expensesHtml(year) {
   all.forEach((e) => { byCategory[e.category] = (byCategory[e.category] || 0) + (e.amount || 0); });
   const maxCat = Math.max(1, ...Object.values(byCategory));
   const editCategoryKnown = editing && EXPENSE_CATEGORIES.includes(editing.category);
+  const editingRecurring = !!(editing && editing.autoRecurringId);
 
   return `
     <div class="expense-overview">
@@ -1040,11 +1074,11 @@ function expensesHtml(year) {
     <form id="expenseForm" class="expense-form">
       <div class="field" style="margin-bottom:0;">
         <label class="field__label">日付</label>
-        <input class="input" type="date" id="ef-date" value="${editing ? editing.date : todayStr()}" required>
+        <input class="input" type="date" id="ef-date" value="${editing ? editing.date : todayStr()}" ${editingRecurring?'disabled':''} required>
       </div>
       <div class="field" style="margin-bottom:0;">
         <label class="field__label">カテゴリ</label>
-        <select class="select" id="ef-category">
+        <select class="select" id="ef-category" ${editingRecurring?'disabled':''}>
           ${EXPENSE_CATEGORIES.map((c) => `<option value="${c}" ${editing && editCategoryKnown && editing.category === c ? 'selected' : ''}>${c}</option>`).join('')}
           <option value="__custom__" ${editing && !editCategoryKnown ? 'selected' : ''}>自由入力…</option>
         </select>
@@ -1064,6 +1098,7 @@ function expensesHtml(year) {
         ${editing && editing.receiptImageId ? `<label class="checkbox-row receipt-remove"><input type="checkbox" id="ef-remove-receipt">領収書を削除</label>` : ''}
       </div>
       <div class="expense-form__actions"><button type="submit" class="btn btn--primary">${editing ? '更新' : ICONS.plus + '追加'}</button>${editing ? '<button type="button" class="btn" data-action="cancel-edit-expense">キャンセル</button>' : ''}</div>
+      ${editingRecurring?'<div class="field__hint recurring-edit-note">この月の金額・メモだけ変更できます。日付とカテゴリは定期経費の設定から管理します。</div>':''}
     </form>
     <button type="button" class="text-link expense-guide-link" data-action="go-expense-guide">何が経費になる？</button>
 
@@ -1077,11 +1112,11 @@ function expensesHtml(year) {
       <tbody>
       ${sorted.map((e) => `<tr>
         <td>${formatJPSlash(e.date)}</td>
-        <td>${escapeHtml(e.category)}${e.autoProjectId ? '<span class="badge badge--auto">自動</span>' : ''}</td>
+        <td>${escapeHtml(e.category)}${e.autoProjectId ? '<span class="badge badge--auto">自動</span>' : ''}${e.autoRecurringId ? '<span class="badge badge--recurring">定期</span>' : ''}</td>
         <td class="num-cell">${formatMoney(e.amount)}</td>
         <td>${escapeHtml(e.memo || '')}</td>
         <td>${e.receiptImageId ? `<img class="receipt-thumb" data-image-id="${e.receiptImageId}" data-action="view-image" data-image-view-id="${e.receiptImageId}" alt="領収書">` : ''}</td>
-        <td>${e.autoProjectId ? '<span class="auto-expense-note">案件側で自動管理されています</span>' : `<div class="row-actions"><button type="button" class="btn btn--sm" data-action="edit-expense" data-expense-id="${e.id}">編集</button><button type="button" class="icon-btn btn--sm" data-action="delete-expense" data-expense-id="${e.id}">${ICONS.trash}</button></div>`}</td>
+        <td>${e.autoProjectId ? '<span class="auto-expense-note">案件側で自動管理されています</span>' : e.autoRecurringId ? `<div class="row-actions recurring-expense-actions"><button type="button" class="btn btn--sm" data-action="edit-expense" data-expense-id="${e.id}">この月を編集</button><span class="auto-expense-note">定期経費から自動生成</span></div>` : `<div class="row-actions"><button type="button" class="btn btn--sm" data-action="edit-expense" data-expense-id="${e.id}">編集</button><button type="button" class="icon-btn btn--sm" data-action="delete-expense" data-expense-id="${e.id}">${ICONS.trash}</button></div>`}</td>
       </tr>`).join('')}
       </tbody>
     </table></div>
@@ -1186,8 +1221,8 @@ function quotesListHtml(year) {
   const quotes=state.quotes.filter((q)=>q.issueDate&&parseDateStr(q.issueDate).getFullYear()===year).sort((a,b)=>diffDays(b.issueDate,a.issueDate));
   return `<div class="invoice-toolbar"><button type="button" class="text-link" data-action="open-price-list-settings">単価表を編集</button><button type="button" class="btn btn--primary" data-action="new-quote">${ICONS.plus}新規作成</button></div>${quotes.length?`<div class="invoice-grid quote-grid">${quotes.map((q)=>`<article class="invoice-card" data-action="open-quote" data-quote-id="${escapeHtml(q.id)}"><div class="invoice-miniature"><div class="invoice-miniature__page">${quotePreviewInnerHtml(q)}</div></div><div class="invoice-card__info"><div class="invoice-card__line"><strong>${escapeHtml(q.number)}</strong><span class="badge quote-status--${q.status}">${QUOTE_STATUS_LABEL[q.status]||'下書き'}</span></div><div>${escapeHtml(q.clientName)}${escapeHtml(q.honorific||'')}</div><div class="invoice-card__line"><strong>${formatMoney(quoteTotal(q))}</strong><button type="button" class="icon-btn btn--sm" data-action="delete-quote" data-quote-id="${escapeHtml(q.id)}">${ICONS.trash}</button></div></div></article>`).join('')}</div>`:'<p class="field__hint">この年の見積書はまだありません。</p>'}`;
 }
-function newQuoteDraft() { const year=new Date().getFullYear();return {id:uuid(),number:nextQuoteNumber(year),issueDate:todayStr(),validUntil:addDays(todayStr(),14),clientId:'',clientName:'',honorific:'御中',subject:'',items:[],rushEnabled:false,rushRate:(state.settings.priceList.find((p)=>p.type==='rate')||{rate:.3}).rate||.3,taxRate:0,notes:'本見積の有効期限は発行日より14日間です。',status:'draft',createdAt:new Date().toISOString()}; }
-function quoteItemRowHtml(item,idx) { return `<div class="invoice-item-row quote-item-row" data-idx="${idx}"><input class="input input--name" data-field="name" value="${escapeHtml(item.name)}" placeholder="品目"><input class="input input--qty" type="number" min="1" data-field="qty" value="${Number(item.qty)||1}" placeholder="数量"><input class="input input--unit" list="unit-options" data-field="unit" value="${escapeHtml(item.unit||'式')}" placeholder="単位"><input class="input input--price" type="number" min="0" data-field="unitPrice" value="${Number(item.unitPrice)||0}" placeholder="単価"><div class="invoice-item-row__amount">${formatMoney((Number(item.qty)||0)*(Number(item.unitPrice)||0))}</div><button type="button" class="icon-btn btn--sm" data-action="remove-quote-item" data-idx="${idx}">${ICONS.trash}</button></div>`; }
+function newQuoteDraft() { const year=new Date().getFullYear();return {id:uuid(),number:nextQuoteNumber(year),issueDate:todayStr(),validUntil:addDays(todayStr(),14),clientId:'',clientName:'',honorific:'御中',subject:'',items:[],rushEnabled:false,rushRate:(state.settings.priceList.find((p)=>p.type==='rate')||{rate:.3}).rate||.3,taxRate:0,notes:'本見積の有効期限は発行日より14日間です。',status:'draft',issuerSnapshot:null,createdAt:new Date().toISOString()}; }
+function quoteItemRowHtml(item,idx) { return `<div class="invoice-item-row quote-item-row" data-idx="${idx}"><label class="invoice-item-field invoice-item-field--name"><span>品目</span><input class="input input--name" data-field="name" value="${escapeHtml(item.name)}" placeholder="品目"></label><label class="invoice-item-field invoice-item-field--qty"><span>数量</span><input class="input input--qty" type="number" min="1" data-field="qty" value="${Number(item.qty)||1}"></label><label class="invoice-item-field invoice-item-field--unit"><span>単位</span><input class="input input--unit" list="unit-options" data-field="unit" value="${escapeHtml(item.unit||'式')}"></label><label class="invoice-item-field invoice-item-field--price"><span>単価</span><span class="currency-input"><i>¥</i><input class="input input--price" type="number" min="0" data-field="unitPrice" value="${Number(item.unitPrice)||0}"></span></label><div class="invoice-item-row__amount"><span>金額</span><strong>${formatMoney((Number(item.qty)||0)*(Number(item.unitPrice)||0))}</strong></div><button type="button" class="icon-btn btn--sm invoice-item-remove" data-action="remove-quote-item" data-idx="${idx}">${ICONS.trash}</button></div>`; }
 function quoteFormHtml(q) {
   const categories=Array.from(new Set(state.settings.priceList.filter((p)=>p.type!=='rate').map((p)=>p.category)));
   const clientOptions=state.clients.map((c)=>`<option value="${escapeHtml(c.id)}" ${q.clientId===c.id?'selected':''}>${escapeHtml(c.name)}</option>`).join('');
@@ -1196,7 +1231,7 @@ function quoteFormHtml(q) {
 function openQuoteFormModal(id) { const original=id?state.quotes.find((q)=>q.id===id):newQuoteDraft();if(!original)return;const isNew=!id;const overlay=openModal(quoteFormHtml(original),{wide:true});overlay.insertAdjacentHTML('beforeend',unitDatalistHtml());wireQuoteForm(overlay,original,isNew); }
 function wireQuoteForm(overlay,original,isNew) {
   const q=JSON.parse(JSON.stringify(original));
-  const renderItems=()=>{const box=$('#qf-items',overlay);box.innerHTML=q.items.map(quoteItemRowHtml).join('');$all('.quote-item-row',box).forEach((row)=>{$all('[data-field]',row).forEach((input)=>input.addEventListener('input',()=>{const field=input.dataset.field;const item=q.items[Number(row.dataset.idx)];item[field]=field==='name'||field==='unit'?input.value:Number(input.value);$('.invoice-item-row__amount',row).textContent=formatMoney((Number(item.qty)||0)*(Number(item.unitPrice)||0));updateTotal();}));});};
+  const renderItems=()=>{const box=$('#qf-items',overlay);box.innerHTML=q.items.map(quoteItemRowHtml).join('');$all('.quote-item-row',box).forEach((row)=>{$all('[data-field]',row).forEach((input)=>input.addEventListener('input',()=>{const field=input.dataset.field;const item=q.items[Number(row.dataset.idx)];item[field]=field==='name'||field==='unit'?input.value:Number(input.value);$('.invoice-item-row__amount strong',row).textContent=formatMoney((Number(item.qty)||0)*(Number(item.unitPrice)||0));updateTotal();}));});};
   const updateTotal=()=>{$('#qf-total',overlay).innerHTML=`<span>小計 ${formatMoney(quoteSubtotal(q))}</span><span>特急 ${formatMoney(quoteRush(q))}</span><span>消費税 ${formatMoney(quoteTax(q))}</span><strong>合計 ${formatMoney(quoteTotal(q))}</strong>`;};
   $('#qf-client',overlay).addEventListener('change',(e)=>{if(e.target.value&&e.target.value!=='__new__'){const c=getClientById(e.target.value);q.clientId=c.id;q.clientName=c.name;$('#qf-client-name',overlay).value=c.name;}else q.clientId='';});
   [['qf-number','number'],['qf-issue','issueDate'],['qf-valid','validUntil'],['qf-client-name','clientName'],['qf-honorific','honorific'],['qf-subject','subject'],['qf-notes','notes']].forEach(([id,key])=>$('#'+id,overlay).addEventListener('input',(e)=>q[key]=e.target.value));
@@ -1206,10 +1241,10 @@ function wireQuoteForm(overlay,original,isNew) {
   renderItems();updateTotal();
 }
 function quotePreviewInnerHtml(q) {
-  const issuer=state.settings.issuer; const rush=quoteRush(q); const total=quoteTotal(q);
+  const issuer=issuerForDocument(q); const rush=quoteRush(q); const total=quoteTotal(q);
   return `<div class="invoice-preview quote-preview"><div class="invoice-preview__title">お見積書</div><div class="invoice-preview__meta">見積番号: ${escapeHtml(q.number)}　発行日: ${formatJPSlash(q.issueDate)}</div><div class="invoice-preview__top"><div class="invoice-preview__to">${escapeHtml(q.clientName)} ${escapeHtml(q.honorific||'')}</div><div class="invoice-preview__issuer">${escapeHtml(issuer.name||'')}<br>${escapeHtml(issuer.address||'')}<br>${issuer.tel?'TEL: '+escapeHtml(issuer.tel)+'<br>':''}${issuer.email?escapeHtml(issuer.email):''}</div></div><div class="invoice-preview__subject">件名: ${escapeHtml(q.subject||'')}　有効期限: ${formatJPSlash(q.validUntil)}</div><div class="invoice-preview__total-box"><span class="invoice-preview__total-label">お見積金額（税込）</span><span class="invoice-preview__total-value">${formatMoney(total)}</span></div><table class="invoice-table"><thead><tr><th>品目</th><th style="width:60px">数量</th><th style="width:65px">単位</th><th style="width:105px">単価</th><th style="width:115px">金額</th></tr></thead><tbody>${q.items.map((it)=>`<tr><td>${escapeHtml(it.name)}</td><td class="num">${Number(it.qty)||0}</td><td>${escapeHtml(it.unit||'式')}</td><td class="num">${formatMoney(it.unitPrice)}</td><td class="num">${formatMoney((Number(it.qty)||0)*(Number(it.unitPrice)||0))}</td></tr>`).join('')}${rush?`<tr><td>特急対応（+${Math.round(q.rushRate*100)}%）</td><td class="num">1</td><td>式</td><td class="num">${formatMoney(rush)}</td><td class="num">${formatMoney(rush)}</td></tr>`:''}</tbody></table><div class="invoice-preview__totals"><div class="invoice-preview__totals-row"><span>小計</span><span>${formatMoney(quoteSubtotal(q))}</span></div>${rush?`<div class="invoice-preview__totals-row"><span>特急対応</span><span>${formatMoney(rush)}</span></div>`:''}<div class="invoice-preview__totals-row"><span>消費税${q.taxRate?'（10%）':''}</span><span>${formatMoney(quoteTax(q))}</span></div><div class="invoice-preview__totals-row grand"><span>合計</span><span>${formatMoney(total)}</span></div></div><div class="invoice-preview__bottom"><div class="invoice-preview__notes"><h4>備考</h4>${escapeHtml(q.notes||'本見積の有効期限は発行日より14日間です。').replace(/\n/g,'<br>')}</div></div></div>`;
 }
-function openQuotePreviewModal(id) { const q=state.quotes.find((x)=>x.id===id);if(!q)return;const safeId=escapeHtml(q.id);const overlay=openModal(`<div class="modal__header"><h2 class="modal__title">見積書プレビュー</h2><button type="button" class="icon-btn" data-action="close-modal">${ICONS.close}</button></div><div class="modal__body"><div class="invoice-toolbar"><div><button type="button" class="btn btn--sm" data-action="edit-quote" data-quote-id="${safeId}">編集</button><button type="button" class="btn btn--sm" data-action="print-invoice">印刷 / PDF保存</button><button type="button" class="btn btn--sm" data-action="save-quote-jpg" data-quote-id="${safeId}">JPGで保存</button><button type="button" class="btn btn--sm" data-action="export-quote-csv" data-quote-id="${safeId}">CSV</button><button type="button" class="btn btn--sm" data-action="convert-quote-invoice" data-quote-id="${safeId}">この見積から請求書を作成</button><select class="select quote-status-select" data-quote-id="${safeId}">${Object.entries(QUOTE_STATUS_LABEL).map(([value,label])=>`<option value="${value}" ${q.status===value?'selected':''}>${label}</option>`).join('')}</select></div></div><div class="invoice-preview-wrap a4-fit-preview">${quotePreviewInnerHtml(q)}</div></div>`,{wide:true});$('.quote-status-select',overlay).addEventListener('change',(e)=>{q.status=e.target.value;saveState();renderMoneyTab();});requestAnimationFrame(()=>fitA4Preview(overlay)); }
+function openQuotePreviewModal(id) { const q=state.quotes.find((x)=>x.id===id);if(!q)return;const safeId=escapeHtml(q.id);const overlay=openModal(`<div class="modal__header"><h2 class="modal__title">見積書プレビュー</h2><button type="button" class="icon-btn" data-action="close-modal">${ICONS.close}</button></div><div class="modal__body"><div class="invoice-toolbar"><div><button type="button" class="btn btn--sm" data-action="edit-quote" data-quote-id="${safeId}">編集</button><button type="button" class="btn btn--sm" data-action="print-invoice">印刷 / PDF保存</button><button type="button" class="btn btn--sm" data-action="save-quote-jpg" data-quote-id="${safeId}">JPGで保存</button><button type="button" class="btn btn--sm" data-action="export-quote-csv" data-quote-id="${safeId}">CSV</button><button type="button" class="btn btn--sm" data-action="convert-quote-invoice" data-quote-id="${safeId}">この見積から請求書を作成</button><select class="select quote-status-select" data-quote-id="${safeId}">${Object.entries(QUOTE_STATUS_LABEL).map(([value,label])=>`<option value="${value}" ${q.status===value?'selected':''}>${label}</option>`).join('')}</select></div></div><div class="invoice-preview-wrap a4-fit-preview">${quotePreviewInnerHtml(q)}</div></div>`,{wide:true});$('.quote-status-select',overlay).addEventListener('change',(e)=>{q.status=e.target.value;ensureQuoteIssuerSnapshot(q);saveState();renderMoneyTab();openQuotePreviewModal(q.id);});requestAnimationFrame(()=>fitA4Preview(overlay)); }
 function deleteQuote(id){if(!confirm('この見積書を削除します。よろしいですか？'))return;state.quotes=state.quotes.filter((q)=>q.id!==id);saveState();closeModal();renderMoneyTab();}
 function saveQuoteAsJpg(id){
   const q=state.quotes.find((x)=>x.id===id);if(!q)return;const W=1240,H=1754,margin=90;
@@ -1279,7 +1314,7 @@ function openInvoiceFormModal(opts) {
       id: uuid(), number: nextInvoiceNumber(year), projectId,
       issueDate: todayStr(), dueDate: '', clientName, honorific: '御中',
       subject, items, taxRate: DEFAULT_TAX_RATE, hasWithholding, notes: '',
-      status: 'issued', createdAt: new Date().toISOString(),
+      status: 'issued', issuerSnapshot:null, createdAt: new Date().toISOString(),
     };
   }
   const overlay = openModal(invoiceFormHtml(invoice, isNew), { wide: true });
@@ -1348,12 +1383,12 @@ function invoiceItemRowHtml(it, idx) {
   const amount = (Number(it.qty) || 0) * (Number(it.unitPrice) || 0);
   return `
   <div class="invoice-item-row" data-idx="${idx}">
-    <input class="input input--name" placeholder="品目" value="${escapeHtml(it.name)}" data-field="name">
-    <input class="input input--qty" type="number" min="0" placeholder="数量" value="${it.qty}" data-field="qty">
-    <input class="input input--unit" list="unit-options" placeholder="単位" value="${escapeHtml(it.unit||'式')}" data-field="unit">
-    <input class="input input--price" type="number" min="0" placeholder="単価" value="${it.unitPrice}" data-field="unitPrice">
-    <div class="invoice-item-row__amount">${formatMoney(amount)}</div>
-    <button type="button" class="icon-btn btn--sm" data-action="remove-invoice-item" data-idx="${idx}">${ICONS.trash}</button>
+    <label class="invoice-item-field invoice-item-field--name"><span>品目</span><input class="input input--name" placeholder="品目" value="${escapeHtml(it.name)}" data-field="name"></label>
+    <label class="invoice-item-field invoice-item-field--qty"><span>数量</span><input class="input input--qty" type="number" min="0" value="${it.qty}" data-field="qty"></label>
+    <label class="invoice-item-field invoice-item-field--unit"><span>単位</span><input class="input input--unit" list="unit-options" value="${escapeHtml(it.unit||'式')}" data-field="unit"></label>
+    <label class="invoice-item-field invoice-item-field--price"><span>単価</span><span class="currency-input"><i>¥</i><input class="input input--price" type="number" min="0" value="${it.unitPrice}" data-field="unitPrice"></span></label>
+    <div class="invoice-item-row__amount"><span>金額</span><strong>${formatMoney(amount)}</strong></div>
+    <button type="button" class="icon-btn btn--sm invoice-item-remove" data-action="remove-invoice-item" data-idx="${idx}">${ICONS.trash}</button>
   </div>`;
 }
 
@@ -1376,7 +1411,7 @@ function wireInvoiceForm(overlay, invoiceOriginal, isNew) {
         inp.addEventListener('input', () => {
           const field = inp.dataset.field;
           draft.items[idx][field] = field === 'name' || field === 'unit' ? inp.value : Number(inp.value);
-          row.querySelector('.invoice-item-row__amount').textContent = formatMoney((Number(draft.items[idx].qty) || 0) * (Number(draft.items[idx].unitPrice) || 0));
+          row.querySelector('.invoice-item-row__amount strong').textContent = formatMoney((Number(draft.items[idx].qty) || 0) * (Number(draft.items[idx].unitPrice) || 0));
           updateTotalsPreview();
         });
       });
@@ -1421,6 +1456,7 @@ function wireInvoiceForm(overlay, invoiceOriginal, isNew) {
       if (!draft.clientName.trim()) { showToast('宛先を入力してください', 'error'); return; }
       if (!draft.issueDate) { showToast('発行日を入力してください', 'error'); return; }
       if (!draft.items.length || draft.items.every((it) => !it.name.trim())) { showToast('明細を1行以上入力してください', 'error'); return; }
+      ensureInvoiceIssuerSnapshot(draft);
 
       if (isNew) {
         state.invoices.push(draft);
@@ -1480,7 +1516,7 @@ function invoicePreviewModalHtml(inv) {
 }
 
 function invoicePreviewInnerHtml(inv) {
-  const issuer = state.settings.issuer;
+  const issuer = issuerForDocument(inv);
   const subtotal = invoiceSubtotal(inv);
   const tax = invoiceTax(inv);
   const wh = invoiceWithholding(inv);
@@ -1533,6 +1569,7 @@ function markInvoicePaid(invoiceId) {
   const inv = state.invoices.find((iv) => iv.id === invoiceId);
   if (!inv) return;
   inv.status = 'paid';
+  ensureInvoiceIssuerSnapshot(inv);
   if (inv.projectId) {
     const p = state.projects.find((x) => x.id === inv.projectId);
     if (p) { p.paymentStatus = 'paid'; if (!p.paidDate) p.paidDate = todayStr(); }
@@ -1575,7 +1612,7 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
 function saveInvoiceAsJpg(invoiceId) {
   const inv = state.invoices.find((iv) => iv.id === invoiceId);
   if (!inv) return;
-  const issuer = state.settings.issuer;
+  const issuer = issuerForDocument(inv);
   const W = 1240, H = 1754;
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
@@ -1848,11 +1885,13 @@ function deleteGalleryExtra(extraId) {
 let settingsTab = 'template';
 let settingsSelectedClientId = '';
 let settingsReturnToProject = false;
+let settingsEditingRecurringId = null;
 
 function openSettingsModal(options) {
   options = options || {};
   settingsTab = options.initialTab || 'template';
   settingsSelectedClientId = '';
+  settingsEditingRecurringId = null;
   settingsReturnToProject = !!options.returnToProject;
   const overlay = openModal(settingsModalHtml(), { wide: true, stack:!!options.stack });
   wireSettingsModal(overlay);
@@ -1870,6 +1909,7 @@ function settingsModalHtml() {
       <button type="button" class="money-subtab-btn ${settingsTab === 'template' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="template">工程テンプレート</button>
       <button type="button" class="money-subtab-btn ${settingsTab === 'clients' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="clients">クライアント管理</button>
       <button type="button" class="money-subtab-btn ${settingsTab === 'issuer' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="issuer">発行者情報</button>
+      <button type="button" class="money-subtab-btn ${settingsTab === 'recurring' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="recurring">定期経費</button>
       <button type="button" class="money-subtab-btn ${settingsTab === 'backup' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="backup">バックアップ</button>
       <button type="button" class="money-subtab-btn ${settingsTab === 'theme' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="theme">テーマ</button>
       <button type="button" class="money-subtab-btn ${settingsTab === 'priceList' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="priceList">単価表</button>
@@ -1885,6 +1925,7 @@ function wireSettingsModal(overlay) {
   if (settingsTab === 'template') { sub.innerHTML = templateSettingsHtml(); wireTemplateSettings(overlay); }
   else if (settingsTab === 'clients') { sub.innerHTML = clientSettingsHtml(); wireClientSettings(overlay); }
   else if (settingsTab === 'issuer') { sub.innerHTML = issuerSettingsHtml(); wireIssuerSettings(overlay); }
+  else if (settingsTab === 'recurring') { sub.innerHTML = recurringExpenseSettingsHtml(); wireRecurringExpenseSettings(overlay); }
   else if (settingsTab === 'backup') { sub.innerHTML = backupSettingsHtml(); wireBackupSettings(overlay); }
   else if (settingsTab === 'theme') { sub.innerHTML = themeSettingsHtml(); wireThemeSettings(overlay); }
   else if (settingsTab === 'priceList') { sub.innerHTML=priceListSettingsHtml();wirePriceListSettings(overlay); }
@@ -1899,6 +1940,27 @@ function themeSettingsHtml() {
 function wireThemeSettings(overlay) {
   const custom=$('#themeCustomPicker',overlay); if(!custom)return;
   custom.addEventListener('click',()=>openColorPicker(custom,state.settings.accentColor,(color)=>{state.settings.accentColor=color;saveState();applyAccentTheme(color);const dot=$('span',custom);if(dot)dot.style.background=color;const code=$('.theme-current code',overlay);if(code)code.textContent=color;}));
+}
+
+function recurringExpenseSettingsHtml() {
+  const editing=state.recurringExpenses.find((item)=>item.id===settingsEditingRecurringId)||null;
+  return `<h3 class="section-title">定期経費（サブスク）</h3><p class="field__hint">開始月から毎月、自動で経費を作成します。過去に作成された月の経費は、定期経費を削除しても残ります。</p>
+    <form id="recurringExpenseForm" class="recurring-expense-form">
+      <div class="field"><label class="field__label">名前</label><input class="input" id="ref-name" value="${escapeHtml(editing&&editing.name||'')}" placeholder="例: クリップスタジオペイント／AIサブスク／スマホ通信費" required></div>
+      <div class="field"><label class="field__label">カテゴリ</label><select class="select" id="ref-category">${EXPENSE_CATEGORIES.map((category)=>`<option value="${escapeHtml(category)}" ${editing&&editing.category===category?'selected':''}>${escapeHtml(category)}</option>`).join('')}</select></div>
+      <div class="field"><label class="field__label">月額（円）</label><input class="input" id="ref-amount" type="number" min="0" value="${editing?Number(editing.amount)||0:''}" required></div>
+      <div class="field"><label class="field__label">毎月の日</label><input class="input" id="ref-day" type="number" min="1" max="31" value="${editing?Number(editing.dayOfMonth)||1:1}" required></div>
+      <div class="field"><label class="field__label">開始月</label><input class="input" id="ref-start" type="month" value="${escapeHtml(editing&&editing.startMonth||todayStr().slice(0,7))}" required></div>
+      <div class="field"><label class="field__label">メモ</label><input class="input" id="ref-memo" value="${escapeHtml(editing&&editing.memo||'')}" placeholder="例: 制作ソフト月額プラン"></div>
+      <label class="checkbox-row"><input type="checkbox" id="ref-active" ${!editing||editing.active?'checked':''}>自動計上を有効にする</label>
+      <div class="recurring-expense-form__actions"><button type="submit" class="btn btn--primary">${editing?'更新する':'追加する'}</button>${editing?'<button type="button" class="btn" data-action="cancel-recurring-expense-edit">キャンセル</button>':''}</div>
+    </form>
+    <div class="recurring-expense-list">${state.recurringExpenses.length?state.recurringExpenses.map((item)=>`<div class="recurring-expense-row ${item.active?'':'is-paused'}"><div><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.category)}・${formatMoney(item.amount)}・毎月${Number(item.dayOfMonth)||1}日・${escapeHtml(item.startMonth)}開始</span><small>${item.active?'自動計上中':'一時停止中'}</small></div><div><button type="button" class="btn btn--sm" data-action="toggle-recurring-expense" data-recurring-id="${item.id}">${item.active?'一時停止':'再開'}</button><button type="button" class="btn btn--sm" data-action="edit-recurring-expense" data-recurring-id="${item.id}">編集</button><button type="button" class="icon-btn btn--sm" data-action="delete-recurring-expense" data-recurring-id="${item.id}">${ICONS.trash}</button></div></div>`).join(''):'<p class="field__hint">定期経費はまだ登録されていません。</p>'}</div>`;
+}
+
+function wireRecurringExpenseSettings(overlay) {
+  const form=$('#recurringExpenseForm',overlay); if(!form)return;
+  form.addEventListener('submit',(event)=>{event.preventDefault();const name=$('#ref-name',overlay).value.trim();const amount=Number($('#ref-amount',overlay).value);const day=Math.max(1,Math.min(31,Number($('#ref-day',overlay).value)||1));const startMonth=$('#ref-start',overlay).value; if(!name||!Number.isFinite(amount)||amount<0||!/^\d{4}-\d{2}$/.test(startMonth)){showToast('定期経費の入力内容を確認してください','error');return;}const values={name,category:$('#ref-category',overlay).value,amount,dayOfMonth:day,memo:$('#ref-memo',overlay).value.trim(),startMonth,active:$('#ref-active',overlay).checked};const editing=state.recurringExpenses.find((item)=>item.id===settingsEditingRecurringId);if(editing)Object.assign(editing,values);else state.recurringExpenses.push(Object.assign({id:uuid()},values));settingsEditingRecurringId=null;generateRecurringExpensesThroughCurrentMonth();saveState();wireSettingsModal(overlay);renderCurrentTab();showToast(editing?'定期経費を更新しました':'定期経費を追加しました');});
 }
 
 function usageSettingsHtml() {
@@ -2138,7 +2200,7 @@ function openWelcomeModal() {
 
 const TOUR_STEPS = [
   { tab:'home', selector:'.tab-btn[data-tab="home"]', title:'ホーム', text:'売上と直近のタスクを、ひと目で確認できます。' },
-  { tab:'calendar', selector:'.tab-btn[data-tab="calendar"]', title:'カレンダー', text:'すべての案件の工程期限と納期を、月・週・スケジュールで確認できます。' },
+  { tab:'calendar', selector:'.tab-btn[data-tab="calendar"]', title:'カレンダー', text:'すべての案件の工程期限と納期を、リスト・月・週・予定で確認できます。' },
   { tab:'projects', selector:'.tab-btn[data-tab="projects"]', title:'案件', text:'納期を入れると、必要な工程と期限を自動で計画します。' },
   { tab:'money', selector:'.tab-btn[data-tab="money"]', title:'お金', text:'請求書の作成と、確定申告に使う売上・経費を記録できます。' },
   { tab:'gallery', selector:'.tab-btn[data-tab="gallery"]', title:'作品', text:'納品した作品を、制作期間と一緒にアルバムとして残せます。' },
@@ -2321,6 +2383,17 @@ document.addEventListener('click', (e) => {
       saveState(); closeModal(); renderCurrentTab(); showToast('保存しました');
       break;
 
+    case 'move-step-up':
+    case 'move-step-down': {
+      const overlayEl=document.getElementById('activeModalOverlay'); const projectId=currentDetailProjectId(overlayEl);
+      const p=state.projects.find((project)=>project.id===projectId); if(!p)break;
+      const index=p.steps.findIndex((step)=>step.id===btn.dataset.stepId); const direction=action==='move-step-up'?-1:1; const target=index+direction;
+      if(index<0||target<0||target>=p.steps.length)break;
+      [p.steps[index],p.steps[target]]=[p.steps[target],p.steps[index]]; p.updatedAt=new Date().toISOString();
+      saveState(); refreshProjectDetail(overlayEl,p.id); renderCurrentTab();
+      break;
+    }
+
     case 'add-step': {
       const p = state.projects.find((x) => x.id === btn.dataset.projectId);
       if (!p) break;
@@ -2391,11 +2464,37 @@ document.addEventListener('click', (e) => {
 
     case 'switch-settings-tab': {
       settingsTab = btn.dataset.subtab;
+      if (settingsTab !== 'recurring') settingsEditingRecurringId = null;
       const overlayEl = document.getElementById('activeModalOverlay');
       if (overlayEl) {
         $all('[data-action="switch-settings-tab"]', overlayEl).forEach((tab) => tab.classList.toggle('is-active', tab.dataset.subtab === settingsTab));
         wireSettingsModal(overlayEl);
+        requestAnimationFrame(() => btn.scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' }));
       }
+      break;
+    }
+
+    case 'edit-recurring-expense':
+      settingsEditingRecurringId=btn.dataset.recurringId;
+      {const overlayEl=document.getElementById('activeModalOverlay');if(overlayEl)wireSettingsModal(overlayEl);}
+      break;
+
+    case 'cancel-recurring-expense-edit':
+      settingsEditingRecurringId=null;
+      {const overlayEl=document.getElementById('activeModalOverlay');if(overlayEl)wireSettingsModal(overlayEl);}
+      break;
+
+    case 'toggle-recurring-expense': {
+      const recurring=state.recurringExpenses.find((item)=>item.id===btn.dataset.recurringId);if(!recurring)break;
+      recurring.active=!recurring.active;if(recurring.active)generateRecurringExpensesThroughCurrentMonth();saveState();
+      {const overlayEl=document.getElementById('activeModalOverlay');if(overlayEl)wireSettingsModal(overlayEl);}renderCurrentTab();
+      break;
+    }
+
+    case 'delete-recurring-expense': {
+      if(!confirm('この定期経費を削除しますか？過去に作成された経費は残ります。'))break;
+      state.recurringExpenses=state.recurringExpenses.filter((item)=>item.id!==btn.dataset.recurringId);settingsEditingRecurringId=null;saveState();
+      {const overlayEl=document.getElementById('activeModalOverlay');if(overlayEl)wireSettingsModal(overlayEl);}renderCurrentTab();
       break;
     }
 
@@ -2500,12 +2599,23 @@ document.addEventListener('click', (e) => {
 
     case 'money-year-prev':
       moneyYear -= 1;
+      if(moneySubTab==='ledger')ledgerMonth=new Date(moneyYear,ledgerMonth.getMonth(),1);
       renderMoneyTab();
       break;
 
     case 'money-year-next':
       moneyYear += 1;
+      if(moneySubTab==='ledger')ledgerMonth=new Date(moneyYear,ledgerMonth.getMonth(),1);
       renderMoneyTab();
+      break;
+
+    case 'ledger-month-prev':
+    case 'ledger-month-next': {
+      const direction=action==='ledger-month-next'?1:-1;ledgerMonth=new Date(ledgerMonth.getFullYear(),ledgerMonth.getMonth()+direction,1);moneyYear=ledgerMonth.getFullYear();renderMoneyTab();break;
+    }
+
+    case 'select-ledger-month':
+      ledgerMonth=new Date(Number(btn.dataset.year),Number(btn.dataset.month),1);moneyYear=ledgerMonth.getFullYear();renderMoneyTab();
       break;
 
     case 'export-ledger-csv':
@@ -2525,6 +2635,7 @@ document.addEventListener('click', (e) => {
       if (!confirm('この経費を削除します。よろしいですか？')) break;
       const exp = state.expenses.find((x) => x.id === btn.dataset.expenseId);
       if (exp && exp.autoProjectId) { showToast('案件側で自動管理されています', 'error'); break; }
+      if (exp && exp.autoRecurringId) { showToast('定期経費から自動生成された経費は、この月を編集できます', 'error'); break; }
       if (exp && exp.receiptImageId) imageDelete(exp.receiptImageId);
       state.expenses = state.expenses.filter((x) => x.id !== btn.dataset.expenseId);
       if (editingExpenseId === btn.dataset.expenseId) editingExpenseId = null;
@@ -2562,7 +2673,7 @@ document.addEventListener('click', (e) => {
       break;
 
     case 'convert-quote-invoice': {
-      const q=state.quotes.find((item)=>item.id===btn.dataset.quoteId);if(!q)break;q.status='accepted';
+      const q=state.quotes.find((item)=>item.id===btn.dataset.quoteId);if(!q)break;q.status='accepted';ensureQuoteIssuerSnapshot(q);
       const items=q.items.map((item)=>({name:item.name,qty:item.qty,unit:item.unit||'式',unitPrice:item.unitPrice}));if(q.rushEnabled)items.push({name:`特急対応（+${Math.round(q.rushRate*100)}%）`,qty:1,unit:'式',unitPrice:quoteRush(q)});saveState();closeModal();openInvoiceFormModal({prefill:{clientName:q.clientName,subject:q.subject,items}});break;
     }
 
@@ -2640,13 +2751,13 @@ function init() {
   document.title = `${APP_NAME} — 案件管理`;
   const appTitle = $('.app-header__title');
   if (appTitle) appTitle.textContent = APP_NAME;
-  if (shouldPersistLoadedState) { syncAllAutoProjectExpenses(); saveState(); }
+  if (shouldPersistLoadedState) { syncAllAutoProjectExpenses(); generateRecurringExpensesThroughCurrentMonth(); saveState(); }
   applyAccentTheme(state.settings.accentColor);
   initTabsNav();
   renderCurrentTab();
   let wasMobile=window.matchMedia('(max-width: 767px)').matches;
   window.addEventListener('resize',()=>{const isMobile=window.matchMedia('(max-width: 767px)').matches;if(isMobile!==wasMobile){wasMobile=isMobile;if(currentTab==='calendar')renderCalendar();}const modal=document.getElementById('activeModalOverlay');if(modal)fitA4Preview(modal);fitDocumentMiniatures(document);});
-  const hasExistingData = state.projects.length || state.clients.length || state.expenses.length || state.invoices.length || state.galleryExtras.length;
+  const hasExistingData = state.projects.length || state.clients.length || state.expenses.length || state.recurringExpenses.length || state.invoices.length || state.galleryExtras.length;
   if (!state.settings.onboardingDone) {
     if (hasExistingData) { state.settings.onboardingDone = true; saveState(); }
     else setTimeout(openWelcomeModal, 150);

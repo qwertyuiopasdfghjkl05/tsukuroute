@@ -129,6 +129,7 @@ function defaultData() {
     projects: [],
     clients: [],
     expenses: [],
+    recurringExpenses: [],
     invoices: [],
     quotes: [],
     galleryExtras: [],
@@ -172,9 +173,19 @@ function migrateData(parsed) {
     ? parsed.settings.defaultTemplate : base.settings.defaultTemplate;
   merged.settings.priceList = ((parsed && parsed.settings) && Array.isArray(parsed.settings.priceList)) ? parsed.settings.priceList.map((item)=>Object.assign({ id:uuid(), category:'基本料金', name:'', price:0, type:'fixed' },item)) : base.settings.priceList;
   merged.clients = Array.isArray(parsed && parsed.clients) ? parsed.clients.map((c) => Object.assign({ id: uuid(), name: '', templateOverride: null }, c)) : [];
-  merged.expenses = Array.isArray(parsed && parsed.expenses) ? parsed.expenses.map((e) => Object.assign({ id: uuid(), date: '', category: '雑費', amount: 0, memo: '', receiptImageId: null, autoProjectId: null, createdAt: new Date().toISOString() }, e)) : [];
-  merged.invoices = Array.isArray(parsed && parsed.invoices) ? parsed.invoices.map((iv) => Object.assign({ id: uuid(), number: '', projectId: null, issueDate: '', dueDate: '', clientName: '', honorific: '御中', subject: '', items: [], taxRate: DEFAULT_TAX_RATE, hasWithholding: false, notes: '', status: 'issued', createdAt: new Date().toISOString() }, iv, { items:Array.isArray(iv.items)?iv.items.map((item)=>Object.assign({name:'',qty:1,unit:'式',unitPrice:0},item,{unit:item.unit||'式'})):[] })) : [];
-  merged.quotes = Array.isArray(parsed && parsed.quotes) ? parsed.quotes.map((q)=>Object.assign({ id:uuid(), number:'', issueDate:'', validUntil:'', clientId:'', clientName:'', honorific:'御中', subject:'', items:[], rushEnabled:false, rushRate:0.3, taxRate:0, notes:'', status:'draft', createdAt:new Date().toISOString() },q,{ items:Array.isArray(q.items)?q.items.map((item)=>Object.assign({name:'',qty:1,unit:'式',unitPrice:0},item,{unit:item.unit||'式'})):[] })) : [];
+  merged.expenses = Array.isArray(parsed && parsed.expenses) ? parsed.expenses.map((e) => Object.assign({ id: uuid(), date: '', category: '雑費', amount: 0, memo: '', receiptImageId: null, autoProjectId: null, autoRecurringId: null, createdAt: new Date().toISOString() }, e)) : [];
+  merged.recurringExpenses = Array.isArray(parsed && parsed.recurringExpenses) ? parsed.recurringExpenses.map((item) => Object.assign({ id:uuid(), name:'', category:'通信費', amount:0, dayOfMonth:1, memo:'', startMonth:todayStr().slice(0,7), active:true }, item)) : [];
+  const issuerAtMigration = JSON.parse(JSON.stringify(merged.settings.issuer));
+  merged.invoices = Array.isArray(parsed && parsed.invoices) ? parsed.invoices.map((iv) => {
+    const invoice = Object.assign({ id: uuid(), number: '', projectId: null, issueDate: '', dueDate: '', clientName: '', honorific: '御中', subject: '', items: [], taxRate: DEFAULT_TAX_RATE, hasWithholding: false, notes: '', status: 'issued', issuerSnapshot:null, createdAt: new Date().toISOString() }, iv, { items:Array.isArray(iv.items)?iv.items.map((item)=>Object.assign({name:'',qty:1,unit:'式',unitPrice:0},item,{unit:item.unit||'式'})):[] });
+    if (!invoice.issuerSnapshot && ['issued','paid'].includes(invoice.status)) invoice.issuerSnapshot = JSON.parse(JSON.stringify(issuerAtMigration));
+    return invoice;
+  }) : [];
+  merged.quotes = Array.isArray(parsed && parsed.quotes) ? parsed.quotes.map((q) => {
+    const quote = Object.assign({ id:uuid(), number:'', issueDate:'', validUntil:'', clientId:'', clientName:'', honorific:'御中', subject:'', items:[], rushEnabled:false, rushRate:0.3, taxRate:0, notes:'', status:'draft', issuerSnapshot:null, createdAt:new Date().toISOString() },q,{ items:Array.isArray(q.items)?q.items.map((item)=>Object.assign({name:'',qty:1,unit:'式',unitPrice:0},item,{unit:item.unit||'式'})):[] });
+    if (!quote.issuerSnapshot && ['sent','accepted'].includes(quote.status)) quote.issuerSnapshot = JSON.parse(JSON.stringify(issuerAtMigration));
+    return quote;
+  }) : [];
   merged.galleryExtras = Array.isArray(parsed && parsed.galleryExtras) ? parsed.galleryExtras.map((g) => Object.assign({ id: uuid(), imageId: null, title: '', clientName: '', orderedDate: g.createdAt ? toDateStr(new Date(g.createdAt)) : null, deliveredDate: null, fee: 0, createdAt: new Date().toISOString() }, g, { orderedDate: g.orderedDate || (g.createdAt ? toDateStr(new Date(g.createdAt)) : null) })) : [];
   merged.projects = [];
   (Array.isArray(parsed && parsed.projects) ? parsed.projects : []).forEach((raw) => {
@@ -423,6 +434,44 @@ function syncAllAutoProjectExpenses() {
   const projectIds = new Set(state.projects.map((project) => project.id));
   state.expenses = state.expenses.filter((expense) => !expense.autoProjectId || projectIds.has(expense.autoProjectId));
 }
+
+function generateRecurringExpensesThroughCurrentMonth() {
+  if (!Array.isArray(state.recurringExpenses) || !Array.isArray(state.expenses)) return 0;
+  const currentMonth = todayStr().slice(0, 7);
+  let createdCount = 0;
+  state.recurringExpenses.forEach((recurring) => {
+    if (!recurring.active || !/^\d{4}-\d{2}$/.test(recurring.startMonth || '') || recurring.startMonth > currentMonth) return;
+    const startParts = recurring.startMonth.split('-').map(Number);
+    const cursor = new Date(startParts[0], startParts[1] - 1, 1);
+    const currentParts = currentMonth.split('-').map(Number);
+    const end = new Date(currentParts[0], currentParts[1] - 1, 1);
+    while (cursor <= end) {
+      const month = `${cursor.getFullYear()}-${pad2(cursor.getMonth() + 1)}`;
+      const exists = state.expenses.some((expense) => expense.autoRecurringId === recurring.id && String(expense.date || '').slice(0, 7) === month);
+      if (!exists) {
+        const lastDay = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
+        const day = Math.min(lastDay, Math.max(1, Number(recurring.dayOfMonth) || 1));
+        state.expenses.push({
+          id:uuid(), date:`${month}-${pad2(day)}`, category:recurring.category || '雑費', amount:Number(recurring.amount) || 0,
+          memo:`${recurring.memo || recurring.name || ''}（定期）`, receiptImageId:null, autoProjectId:null,
+          autoRecurringId:recurring.id, createdAt:new Date().toISOString(),
+        });
+        createdCount += 1;
+      }
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+  });
+  return createdCount;
+}
+
+function copyCurrentIssuer() { return JSON.parse(JSON.stringify(state.settings.issuer || {})); }
+function ensureQuoteIssuerSnapshot(quote) {
+  if (quote && !quote.issuerSnapshot && ['sent','accepted'].includes(quote.status)) quote.issuerSnapshot = copyCurrentIssuer();
+}
+function ensureInvoiceIssuerSnapshot(invoice) {
+  if (invoice && !invoice.issuerSnapshot && ['issued','paid'].includes(invoice.status)) invoice.issuerSnapshot = copyCurrentIssuer();
+}
+function issuerForDocument(documentData) { return (documentData && documentData.issuerSnapshot) || state.settings.issuer; }
 
 function withholdingAmount(project) {
   return project.hasWithholding ? calcWithholding(project.fee) : 0;

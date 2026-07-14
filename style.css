@@ -1466,6 +1466,84 @@ a, .text-link { color:var(--accent); }
   .price-list-row [data-field="category"], .price-list-row [data-field="name"] { grid-column:1/-1; }
 }
 
+/* ===================== 追加フィードバック ===================== */
+.todo-item__body { overflow:hidden; }
+.todo-item__title { font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.todo-item__meta { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.todo-item__due { flex:0 0 112px; text-align:right; }
+
+.project-card__foot--milestones { display:grid; grid-template-columns:1fr auto; gap:5px 10px; align-items:center; }
+.project-next-step { grid-column:1/-1; color:var(--ink); }
+.project-next-step.is-overdue { color:var(--status-overdue); }
+.project-delivery-date { font-weight:700; color:var(--navy); white-space:nowrap; }
+.project-row__rough { margin-top:4px; color:var(--ink-soft); font-size:12px; }
+.project-row__progress-label { display:flex; flex-direction:column; gap:2px; }
+.project-row__progress-label strong { color:var(--ink); font-size:12px; }
+.project-row__due { color:var(--navy); }
+
+.step-order-controls { display:flex; flex-direction:column; gap:2px; flex:0 0 auto; }
+.step-order-controls button { width:26px; height:22px; padding:0; border:1px solid var(--line); border-radius:6px; background:var(--surface); color:var(--ink-soft); cursor:pointer; line-height:1; }
+.step-order-controls button:hover { border-color:var(--accent); color:var(--accent); }
+.delivery-step-marker { display:inline-flex; align-items:center; justify-content:center; width:23px; height:23px; margin-right:7px; border-radius:50%; background:var(--accent-soft); color:var(--accent); text-decoration:none; }
+
+.recurring-expense-form { padding:16px; margin-bottom:18px; border:1px solid var(--line); border-radius:var(--radius-lg); background:var(--surface-alt); }
+.recurring-expense-form .field-row { align-items:end; }
+.recurring-expense-form__actions { display:flex; gap:8px; flex-wrap:wrap; }
+.recurring-expense-list { display:flex; flex-direction:column; gap:8px; }
+.recurring-expense-row { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:13px 14px; border:1px solid var(--line); border-radius:var(--radius); background:var(--surface); }
+.recurring-expense-row > div:first-child { min-width:0; }
+.recurring-expense-row strong, .recurring-expense-row span, .recurring-expense-row small { display:block; }
+.recurring-expense-row span { margin-top:3px; color:var(--ink-soft); font-size:12.5px; }
+.recurring-expense-row small { margin-top:3px; color:var(--status-done); }
+.recurring-expense-row > div:last-child { display:flex; gap:6px; flex:0 0 auto; }
+.recurring-expense-row.is-paused { opacity:.7; background:var(--surface-alt); }
+.recurring-expense-row.is-paused small { color:var(--ink-faint); }
+.badge--recurring { margin-left:6px; background:#f2ecff; color:#7652b5; }
+.recurring-edit-note { margin-bottom:12px; }
+
+.ledger-month-hero { display:grid; grid-template-columns:42px minmax(0,1fr) 42px; align-items:center; gap:14px; padding:20px 24px; margin-bottom:20px; border:1px solid rgba(104,126,231,.22); border-radius:var(--radius-lg); background:linear-gradient(120deg,var(--accent-soft),#fff); text-align:center; }
+.ledger-month-hero > div span, .ledger-month-hero > div strong { display:block; }
+.ledger-month-hero > div span { color:var(--ink-soft); font-size:14px; }
+.ledger-month-hero > div strong { margin-top:5px; color:var(--navy); font-size:30px; }
+.sales-chart__col { padding:0; border:0; background:transparent; color:inherit; cursor:pointer; }
+.sales-chart__col.is-selected .sales-chart__bar { background:var(--accent-hover); box-shadow:0 0 0 2px rgba(104,126,231,.18); }
+.sales-chart__col.is-selected .sales-chart__label { color:var(--accent); font-weight:700; }
+
+.invoice-item-row { display:grid; grid-template-columns:minmax(170px,1fr) 68px 78px 130px 116px 36px; gap:8px; align-items:end; padding:9px; border:1px solid var(--line); border-radius:var(--radius); background:var(--surface-alt); }
+.invoice-item-field { display:block; min-width:0; }
+.invoice-item-field > span:first-child, .invoice-item-row__amount > span { display:block; margin-bottom:4px; color:var(--ink-soft); font-size:10.5px; font-style:normal; font-weight:600; }
+.invoice-item-field .input { width:100%; min-width:0; }
+.currency-input { position:relative; display:block; }
+.currency-input i { position:absolute; z-index:1; left:10px; top:50%; transform:translateY(-50%); color:var(--ink-soft); font-style:normal; pointer-events:none; }
+.currency-input .input { padding-left:26px; }
+.invoice-item-row__amount { min-height:38px; padding:5px 9px; border:1px solid var(--line); border-radius:7px; background:#eef0f4; text-align:right; }
+.invoice-item-row__amount > span { margin-bottom:1px; text-align:left; }
+.invoice-item-row__amount strong { display:block; color:var(--navy); font-size:13px; white-space:nowrap; }
+.invoice-item-remove { align-self:end; }
+
+@media (max-width:760px) {
+  .todo-item { flex-wrap:nowrap; gap:9px; }
+  .todo-item__due { flex-basis:88px; margin-left:0; font-size:11px; }
+  .project-card__foot--milestones { grid-template-columns:1fr; }
+  .project-next-step { grid-column:auto; }
+  .project-delivery-date { white-space:normal; }
+  .step-order-controls { flex-direction:row; order:2; }
+  .step-check-row__name { order:1; }
+  .step-check-row__dates { order:4; }
+  .step-check-row__remove { order:3; margin-left:auto; }
+  .recurring-expense-row { align-items:flex-start; flex-direction:column; }
+  .recurring-expense-row > div:last-child { width:100%; flex-wrap:wrap; }
+  .ledger-month-hero { grid-template-columns:38px minmax(0,1fr) 38px; gap:8px; padding:16px 10px; }
+  .ledger-month-hero > div strong { font-size:24px; }
+  .invoice-item-row { display:grid; grid-template-columns:68px 78px minmax(105px,1fr) 36px; align-items:end; }
+  .invoice-item-field--name { grid-column:1/-1; }
+  .invoice-item-field--qty { grid-column:1; }
+  .invoice-item-field--unit { grid-column:2; }
+  .invoice-item-field--price { grid-column:3; }
+  .invoice-item-remove { grid-column:4; grid-row:2; }
+  .invoice-item-row__amount { grid-column:1/4; text-align:right; }
+}
+
 /* ===================== 印刷（請求書） ===================== */
 @media print {
   html, body { width:210mm !important; height:297mm !important; margin:0 !important; padding:0 !important; background:#fff !important; overflow:hidden !important; }
