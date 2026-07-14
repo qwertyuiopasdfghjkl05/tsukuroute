@@ -32,7 +32,7 @@ const DEFAULT_PRICE_LIST = [
 DEFAULT_PRICE_LIST.push({ id:uuid(), category:'特殊', name:'特急対応（10日以内）', type:'rate', rate:0.3, price:30 });
 
 const EXPENSE_CATEGORIES = [
-  '消耗品費', '通信費', '取材費', '資料・書籍費', '外注費', '支払手数料', '交際費', '旅費交通費', '雑費',
+  'ソフトウェア・サブスク', '消耗品費', '通信費', '取材費', '資料・書籍費', '外注費', '支払手数料', '交際費', '旅費交通費', '雑費',
 ];
 
 const WITHHOLDING_RATE = 0.1021;
@@ -136,9 +136,11 @@ function defaultData() {
     settings: {
       onboardingDone: false,
       accentColor: '#687EE7',
+      appearance: 'system',
+      avatarImageId: null,
       calendarView: 'month',
       calendarDate: null,
-      platformFeeRate: 0.22,
+      platforms: [{ id:'platform-coconala', name:'ココナラ', feeRate:0.22 }],
       lastBackupAt: null,
       priceList: DEFAULT_PRICE_LIST.map((item)=>({ ...item })),
       defaultTemplate: DEFAULT_TEMPLATE.map((t) => ({ ...t })),
@@ -157,24 +159,39 @@ function leastUsedProjectColor(projects) {
   return PROJECT_COLORS.reduce((best, color) => counts[color] < counts[best] ? color : best, PROJECT_COLORS[0]);
 }
 
+function deliveryLast(items) {
+  const list=Array.isArray(items)?items.slice():[];
+  return list.filter((item)=>!String(item&&item.name||'').includes('納品')).concat(list.filter((item)=>String(item&&item.name||'').includes('納品')));
+}
+
+const pendingHeaderImageDeletes = new Set();
 function migrateData(parsed) {
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('invalid data');
   const base = defaultData();
   const merged = Object.assign({}, base, parsed || {});
   merged.settings = Object.assign({}, base.settings, (parsed && parsed.settings) || {});
+  if(merged.settings.headerImageId)pendingHeaderImageDeletes.add(merged.settings.headerImageId);
+  if(Array.isArray(merged.settings.headerImages))merged.settings.headerImages.filter(Boolean).forEach((id)=>pendingHeaderImageDeletes.add(id));
+  delete merged.settings.headerImageId;
+  delete merged.settings.headerImages;
+  merged.settings.avatarImageId=merged.settings.avatarImageId||null;
   if (!/^#[0-9a-f]{6}$/i.test(merged.settings.accentColor || '')) merged.settings.accentColor = '#687EE7';
+  if (!['light', 'dark', 'system'].includes(merged.settings.appearance)) merged.settings.appearance = 'system';
   if (!['today', 'month', 'week', 'schedule'].includes(merged.settings.calendarView)) merged.settings.calendarView = 'month';
   if (merged.settings.calendarDate && !/^\d{4}-\d{2}-\d{2}$/.test(merged.settings.calendarDate)) merged.settings.calendarDate = null;
   const platformFeeRate = Number(merged.settings.platformFeeRate);
-  merged.settings.platformFeeRate = Number.isFinite(platformFeeRate) && platformFeeRate >= 0 && platformFeeRate <= 1 ? platformFeeRate : base.settings.platformFeeRate;
+  merged.settings.platformFeeRate = Number.isFinite(platformFeeRate) && platformFeeRate >= 0 && platformFeeRate <= 1 ? platformFeeRate : 0.22;
+  const savedPlatforms=parsed&&parsed.settings&&parsed.settings.platforms;
+  merged.settings.platforms=Array.isArray(savedPlatforms)&&savedPlatforms.length?savedPlatforms.map((platform)=>Object.assign({id:uuid(),name:'',feeRate:0},platform,{feeRate:Math.max(0,Math.min(1,Number(platform.feeRate)||0))})):[{id:'platform-coconala',name:'ココナラ',feeRate:merged.settings.platformFeeRate}];
+  const coconalaPlatform=merged.settings.platforms.find((platform)=>platform.name==='ココナラ')||merged.settings.platforms[0];
   if (merged.settings.lastBackupAt && !/^\d{4}-\d{2}-\d{2}$/.test(merged.settings.lastBackupAt)) merged.settings.lastBackupAt = null;
   merged.settings.issuer = Object.assign({}, base.settings.issuer, ((parsed && parsed.settings) && parsed.settings.issuer) || {});
-  merged.settings.defaultTemplate = ((parsed && parsed.settings) && Array.isArray(parsed.settings.defaultTemplate))
-    ? parsed.settings.defaultTemplate : base.settings.defaultTemplate;
+  merged.settings.defaultTemplate = deliveryLast(((parsed && parsed.settings) && Array.isArray(parsed.settings.defaultTemplate))
+    ? parsed.settings.defaultTemplate : base.settings.defaultTemplate);
   merged.settings.priceList = ((parsed && parsed.settings) && Array.isArray(parsed.settings.priceList)) ? parsed.settings.priceList.map((item)=>Object.assign({ id:uuid(), category:'基本料金', name:'', price:0, type:'fixed' },item)) : base.settings.priceList;
-  merged.clients = Array.isArray(parsed && parsed.clients) ? parsed.clients.map((c) => Object.assign({ id: uuid(), name: '', templateOverride: null }, c)) : [];
+  merged.clients = Array.isArray(parsed && parsed.clients) ? parsed.clients.map((c) => {const client=Object.assign({ id:uuid(),name:'',templateOverride:null },c);if(Array.isArray(client.templateOverride))client.templateOverride=deliveryLast(client.templateOverride);return client;}) : [];
   merged.expenses = Array.isArray(parsed && parsed.expenses) ? parsed.expenses.map((e) => Object.assign({ id: uuid(), date: '', category: '雑費', amount: 0, memo: '', receiptImageId: null, autoProjectId: null, autoRecurringId: null, createdAt: new Date().toISOString() }, e)) : [];
-  merged.recurringExpenses = Array.isArray(parsed && parsed.recurringExpenses) ? parsed.recurringExpenses.map((item) => Object.assign({ id:uuid(), name:'', category:'通信費', amount:0, dayOfMonth:1, memo:'', startMonth:todayStr().slice(0,7), active:true }, item)) : [];
+  merged.recurringExpenses = Array.isArray(parsed && parsed.recurringExpenses) ? parsed.recurringExpenses.map((item) => Object.assign({ id:uuid(), name:'', category:'ソフトウェア・サブスク', amount:0, frequency:'monthly', monthOfYear:1, dayOfMonth:1, memo:'', startMonth:todayStr().slice(0,7), active:true }, item)) : [];
   const issuerAtMigration = JSON.parse(JSON.stringify(merged.settings.issuer));
   merged.invoices = Array.isArray(parsed && parsed.invoices) ? parsed.invoices.map((iv) => {
     const invoice = Object.assign({ id: uuid(), number: '', projectId: null, issueDate: '', dueDate: '', clientName: '', honorific: '御中', subject: '', items: [], taxRate: DEFAULT_TAX_RATE, hasWithholding: false, notes: '', status: 'issued', issuerSnapshot:null, createdAt: new Date().toISOString() }, iv, { items:Array.isArray(iv.items)?iv.items.map((item)=>Object.assign({name:'',qty:1,unit:'式',unitPrice:0},item,{unit:item.unit||'式'})):[] });
@@ -192,19 +209,19 @@ function migrateData(parsed) {
     const legacyColor = LEGACY_PROJECT_COLOR_MAP[String(raw.color || '').toLowerCase()];
     const validCustomColor = /^#[0-9a-f]{6}$/i.test(raw.color || '') ? String(raw.color).toUpperCase() : null;
     const color = legacyColor || validCustomColor || leastUsedProjectColor(merged.projects);
-    const steps = Array.isArray(raw.steps) ? raw.steps.map((step) => {
+    const steps = deliveryLast(Array.isArray(raw.steps) ? raw.steps.map((step) => {
       const dueDate = step.dueDate || raw.dueDate || '';
       return Object.assign({
         id: uuid(), name: '', startDate: dueDate, dueDate, days: 1, done: false, doneAt: null,
       }, step, { startDate: step.startDate || dueDate });
-    }) : [];
+    }) : []);
     merged.projects.push(Object.assign({
       id: uuid(), title: '', clientId: '', clientName: '', dueDate: '', fee: 0,
-      hasWithholding: false, isCoconala: false, memo: '', status: 'in_progress', steps: [], color,
+      hasWithholding: false, isCoconala: false, platformId:null, memo: '', status: 'in_progress', steps: [], color,
       paymentStatus: 'unbilled', paidDate: null, deliveredDate: null, imageIds: [],
       orderedDate: raw.createdAt ? toDateStr(new Date(raw.createdAt)) : null,
       createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    }, raw, { color, orderedDate: raw.orderedDate || (raw.createdAt ? toDateStr(new Date(raw.createdAt)) : null), steps, imageIds: Array.isArray(raw.imageIds) ? raw.imageIds : [] }));
+    }, raw, { platformId:raw.platformId||((raw.isCoconala||raw.hasCoconala||raw.coconala)?coconalaPlatform.id:null),color, orderedDate: raw.orderedDate || (raw.createdAt ? toDateStr(new Date(raw.createdAt)) : null), steps, imageIds: Array.isArray(raw.imageIds) ? raw.imageIds : [] }));
   });
   return merged;
 }
@@ -294,6 +311,12 @@ async function imageDelete(id) {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
+}
+
+async function cleanupObsoleteHeaderImages() {
+  const ids=Array.from(pendingHeaderImageDeletes);if(!ids.length)return;
+  await Promise.all(ids.map((id)=>imageDelete(id)));
+  ids.forEach((id)=>pendingHeaderImageDeletes.delete(id));
 }
 
 async function imageGetAll() {
@@ -400,14 +423,16 @@ function toggleStep(project, stepId, done) {
 }
 
 function platformFeeAmount(project) {
-  const rate = Number(state.settings.platformFeeRate);
-  return Math.floor((Number(project && project.fee) || 0) * (Number.isFinite(rate) ? rate : 0.22));
+  const platform=(state.settings.platforms||[]).find((item)=>item.id===(project&&project.platformId));
+  const rate = Number(platform&&platform.feeRate);
+  return Math.floor((Number(project && project.fee) || 0) * (Number.isFinite(rate) ? rate : 0));
 }
 
 function syncAutoExpenseForProject(project) {
   if (!project || !Array.isArray(state.expenses)) return;
   const matches = state.expenses.filter((expense) => expense.autoProjectId === project.id);
-  if (!project.isCoconala || !project.deliveredDate) {
+  const platform=(state.settings.platforms||[]).find((item)=>item.id===project.platformId);
+  if (!platform || !project.deliveredDate) {
     if (matches.length) state.expenses = state.expenses.filter((expense) => expense.autoProjectId !== project.id);
     return;
   }
@@ -418,7 +443,7 @@ function syncAutoExpenseForProject(project) {
     date: project.deliveredDate,
     category: '支払手数料',
     amount: platformFeeAmount(project),
-    memo: `ココナラ手数料（${project.title}）`,
+    memo: `${platform.name}手数料（${project.title}）`,
     autoProjectId: project.id,
     updatedAt: new Date().toISOString(),
   });
@@ -447,6 +472,9 @@ function generateRecurringExpensesThroughCurrentMonth() {
     const end = new Date(currentParts[0], currentParts[1] - 1, 1);
     while (cursor <= end) {
       const month = `${cursor.getFullYear()}-${pad2(cursor.getMonth() + 1)}`;
+      const isYearly = recurring.frequency === 'yearly';
+      const scheduledMonth = Math.max(1, Math.min(12, Number(recurring.monthOfYear) || 1));
+      if (isYearly && cursor.getMonth() + 1 !== scheduledMonth) { cursor.setMonth(cursor.getMonth() + 1); continue; }
       const exists = state.expenses.some((expense) => expense.autoRecurringId === recurring.id && String(expense.date || '').slice(0, 7) === month);
       if (!exists) {
         const lastDay = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();

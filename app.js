@@ -17,6 +17,15 @@ const ICONS = {
   check: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 13l5 5 9-11" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   image: '<svg width="34" height="34" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="4.5" width="17" height="15" rx="2" stroke="currentColor" stroke-width="1.4"/><circle cx="8.5" cy="9.5" r="1.5" stroke="currentColor" stroke-width="1.3"/><path d="m4 16.5 4.5-4.5 3 3 4-4.5 5 6" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
   folder: '<svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M4 8a2 2 0 0 1 2-2h3l2 2h7a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+  listCheck: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m4 7 1.8 1.8L9 5.5M12 7h8M4 13h5M12 13h8M4 19h5M12 19h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  bell: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  galleryImage: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="4.5" width="17" height="15" rx="2" stroke="currentColor" stroke-width="1.6"/><circle cx="8.5" cy="9.5" r="1.5" stroke="currentColor" stroke-width="1.5"/><path d="m4.5 17 5-5 3.2 3.2 2.6-2.7 4.2 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  sectionFolder: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3.5 7.5A2.5 2.5 0 0 1 6 5h4l2 2h6a2.5 2.5 0 0 1 2.5 2.5v7A2.5 2.5 0 0 1 18 19H6a2.5 2.5 0 0 1-2.5-2.5v-9Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>',
+  gauge: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5.6 18a8 8 0 1 1 12.8 0M12 12l4-3M7.5 15h.01M16.5 15h.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  invoice: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M7 3h10a2 2 0 0 1 2 2v16l-3-2-4 2-4-2-3 2V5a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 8h6M9 12h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
+  wallet: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4H18v16H6.5A2.5 2.5 0 0 1 4 17.5v-11Z" stroke="currentColor" stroke-width="1.7"/><path d="M15 10h5v5h-5a2.5 2.5 0 0 1 0-5Z" stroke="currentColor" stroke-width="1.7"/><path d="M4 7h14" stroke="currentColor" stroke-width="1.7"/></svg>',
+  chart: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 20V11h4v9M10 20V5h4v15M15 20v-7h4v7M3 20h18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  receipt: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 8h6M9 12h6M9 16h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
 };
 
 function arrowLeftSvg() { return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'; }
@@ -77,14 +86,10 @@ function closeModal(all) {
       previous.dispatchEvent(new Event('modalrestored'));
     }
   }
-  if (!root.children.length) document.removeEventListener('keydown', modalEscHandler);
+  if (!root.children.length) {document.removeEventListener('keydown', modalEscHandler);$all('.tabbar__btn').forEach((b)=>b.classList.toggle('is-active',b.dataset.tab===currentTab));}
 }
 
 function closeMoreSheet() { const root=$('#sheetRoot'); if(root) root.innerHTML=''; }
-function openMoreSheet() {
-  const root=$('#sheetRoot'); if(!root)return;
-  root.innerHTML=`<div class="sheet-overlay" data-action="close-more-sheet"><div class="more-sheet" role="dialog" aria-label="その他のメニュー"><div class="sheet-handle"></div><h2>その他</h2><button type="button" data-action="open-more-gallery">${ICONS.image}<span>作品ギャラリー</span></button><button type="button" data-action="open-more-settings"><span class="sheet-icon">⚙</span><span>設定</span></button><button type="button" data-action="restart-tour"><span class="sheet-icon">?</span><span>使い方ツアー</span></button></div></div>`;
-}
 function currentDetailProjectId(overlayEl) {
   return overlayEl ? overlayEl.dataset.projectId : null;
 }
@@ -117,8 +122,12 @@ function emptyStateHtml(icon, title, desc, action, actionLabel) {
     <div class="empty-state__icon">${ICONS[icon] || ''}</div>
     <h3 style="margin-bottom:8px;">${escapeHtml(title)}</h3>
     <p>${escapeHtml(desc)}</p>
-    ${action ? `<button type="button" class="btn btn--primary" data-action="${action}">${ICONS.plus}${escapeHtml(actionLabel)}</button>` : ''}
+    ${action ? `<button type="button" class="text-link" data-action="${action}">${escapeHtml(actionLabel)}</button>` : ''}
   </div>`;
+}
+
+function compactEmptyHtml(icon, message, action, actionLabel) {
+  return `<div class="empty-state empty-state--compact"><div class="empty-state__icon">${ICONS[icon]||ICONS.folder}</div><p>${escapeHtml(message)}</p>${action?`<button type="button" class="text-link" data-action="${escapeHtml(action)}">${escapeHtml(actionLabel)}</button>`:''}</div>`;
 }
 
 function warningBoxHtml(text) {
@@ -127,7 +136,7 @@ function warningBoxHtml(text) {
 
 function colorSwatchesHtml(selected, inputName) {
   const custom = !PROJECT_COLORS.includes(String(selected).toUpperCase());
-  return `<div class="color-swatches" role="radiogroup" aria-label="案件カラー">${PROJECT_COLORS.map((color) => `<button type="button" class="color-swatch ${String(selected).toUpperCase() === color ? 'is-selected' : ''}" style="background:${color};color:${colorText(color)}" data-color="${color}" data-color-input="${inputName}" role="radio" aria-checked="${String(selected).toUpperCase() === color}">${String(selected).toUpperCase() === color ? ICONS.check : ''}</button>`).join('')}${custom ? `<button type="button" class="color-swatch is-selected" style="background:${escapeHtml(selected)};color:${colorText(selected)}" data-color="${escapeHtml(selected)}" role="radio" aria-checked="true">${ICONS.check}</button>` : ''}<button type="button" class="color-swatch-add" data-color-picker="${escapeHtml(inputName)}" aria-label="自由な色を選ぶ">＋</button></div>`;
+  return `<div class="color-swatches" role="radiogroup" aria-label="案件カラー">${PROJECT_COLORS.map((color) => `<button type="button" class="color-swatch ${String(selected).toUpperCase() === color ? 'is-selected' : ''}" style="background:${color};color:${colorText(color)}" data-color="${color}" data-color-input="${inputName}" role="radio" aria-checked="${String(selected).toUpperCase() === color}">${String(selected).toUpperCase() === color ? ICONS.check : ''}</button>`).join('')}${custom ? `<button type="button" class="color-swatch is-selected" style="background:${escapeHtml(selected)};color:${colorText(selected)}" data-color="${escapeHtml(selected)}" role="radio" aria-checked="true">${ICONS.check}</button>` : ''}<button type="button" class="color-swatch-add" data-color-picker="${escapeHtml(inputName)}" aria-label="カスタムカラーを選ぶ">＋</button></div>`;
 }
 
 function normalizeHex(value) { const hex = String(value || '').trim(); return /^#[0-9a-f]{6}$/i.test(hex) ? hex.toUpperCase() : null; }
@@ -140,6 +149,9 @@ function rgbToHsl(hex) {
 }
 function hslToHex(h,s,l) { s/=100;l/=100;const k=(n)=>(n+h/30)%12;const a=s*Math.min(l,1-l);const f=(n)=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));return rgbHex(f(0)*255,f(8)*255,f(4)*255); }
 function darkenHex(hex, amount) { const hsl=rgbToHsl(hex); return hslToHex(hsl.h,hsl.s,Math.max(0,hsl.l-amount)); }
+function accentGradient(hex) { const hsl=rgbToHsl(hex);return `linear-gradient(135deg,${hex} 0%,${hslToHex((hsl.h+18)%360,hsl.s,Math.min(100,hsl.l+8))} 100%)`; }
+function mixHex(base, tint, ratio) { const a=hexRgb(base),b=hexRgb(tint),r=Math.max(0,Math.min(1,ratio));return rgbHex(a.r+(b.r-a.r)*r,a.g+(b.g-a.g)*r,a.b+(b.b-a.b)*r); }
+function projectGradient(color) { const hex=normalizeHex(color)||'#687EE7';return accentGradient(hex); }
 function relativeLuminance(hex) {
   const rgb=hexRgb(hex); const channel=(value)=>{const v=value/255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4);};
   return .2126*channel(rgb.r)+.7152*channel(rgb.g)+.0722*channel(rgb.b);
@@ -147,14 +159,29 @@ function relativeLuminance(hex) {
 function applyAccentTheme(color) {
   const hex = normalizeHex(color) || '#687EE7'; const root=document.documentElement;
   root.style.setProperty('--accent',hex); root.style.setProperty('--accent-hover',darkenHex(hex,9));
-  const rgb=hexRgb(hex); root.style.setProperty('--accent-soft',`rgba(${rgb.r},${rgb.g},${rgb.b},.15)`);
-  root.style.setProperty('--accent-contrast',colorText(hex));
-  root.style.setProperty('--nav-accent',relativeLuminance(hex)>.62?'#182842':hex);
+  const sourceHsl=rgbToHsl(hex),isDark=root.dataset.theme==='dark';
+  const gradStart=isDark?hslToHex(sourceHsl.h,Math.min(100,sourceHsl.s*.9),Math.max(0,sourceHsl.l-5)):hex;
+  const gradHsl=rgbToHsl(gradStart),gradEnd=hslToHex((gradHsl.h+18)%360,gradHsl.s,Math.min(100,gradHsl.l+8));
+  const rgb=hexRgb(gradStart),shiftedRgb=hexRgb(gradEnd),softFactor=isDark?.8:1;
+  const tileStart=mixHex(gradStart,'#FFFFFF',.08),tileEnd=mixHex(gradEnd,'#FFFFFF',.18);
+  root.style.setProperty('--accent-soft',`rgba(${rgb.r},${rgb.g},${rgb.b},${isDark?.12:.15})`);
+  root.style.setProperty('--accent-grad',`linear-gradient(135deg,${gradStart} 0%,${gradEnd} 100%)`);
+  root.style.setProperty('--accent-grad-soft',`linear-gradient(135deg,rgba(${rgb.r},${rgb.g},${rgb.b},${(.20*softFactor).toFixed(3)}) 0%,rgba(${shiftedRgb.r},${shiftedRgb.g},${shiftedRgb.b},${(.12*softFactor).toFixed(3)}) 100%)`);
+  root.style.setProperty('--accent-tile-grad',`linear-gradient(135deg,${tileStart} 0%,${tileEnd} 100%)`);
+  root.style.setProperty('--accent-tile-ink',colorText(tileStart)==='#182842'||colorText(tileEnd)==='#182842'?'#182842':'#FFFFFF');
+  root.style.setProperty('--bg',isDark?'#14171D':mixHex('#FAF9F6',hex,.04));
+  const gradientText=colorText(gradStart)==='#182842'||colorText(gradEnd)==='#182842'?'#182842':'#FFFFFF';
+  root.style.setProperty('--accent-contrast',gradientText);
+  root.style.setProperty('--greeting-text',gradientText);
+  root.style.setProperty('--nav-accent',root.dataset.theme==='dark'?hex:(colorText(hex)==='#182842'?'#182842':hex));
 }
+const appearanceMedia=window.matchMedia('(prefers-color-scheme: dark)');
+function resolvedAppearance() { const value=state.settings.appearance||'system'; return value==='system'?(appearanceMedia.matches?'dark':'light'):value; }
+function applyAppearance() { const theme=resolvedAppearance();document.documentElement.dataset.theme=theme;const meta=$('#themeColorMeta');if(meta)meta.content=theme==='dark'?'#14171D':'#FAF9F6';applyAccentTheme(state.settings.accentColor); }
 function openColorPicker(anchor, initialColor, onChange) {
   const old=$('#activeColorPicker'); if(old) old.remove(); let current=normalizeHex(initialColor)||'#687EE7'; const hsl=rgbToHsl(current);
   const pop=document.createElement('div'); pop.id='activeColorPicker'; pop.className='color-picker-popover';
-  pop.innerHTML=`<div class="color-picker-head"><strong>自由な色</strong><button type="button" class="icon-btn" id="cp-close">${ICONS.close}</button></div><div class="color-picker-main"><input type="color" id="cp-native" value="${current}"><div><label for="cp-hex">HEXコード</label><input class="input" id="cp-hex" value="${current}" maxlength="7"><span class="field__error" id="cp-error"></span></div></div><label>色相 <output id="cp-h-out">${hsl.h}</output><input type="range" id="cp-h" min="0" max="360" value="${hsl.h}"></label><label>彩度 <output id="cp-s-out">${hsl.s}</output><input type="range" id="cp-s" min="0" max="100" value="${hsl.s}"></label><label>明度 <output id="cp-l-out">${hsl.l}</output><input type="range" id="cp-l" min="0" max="100" value="${hsl.l}"></label>`;
+  pop.innerHTML=`<div class="color-picker-head"><strong>カスタム</strong><button type="button" class="icon-btn" id="cp-close">${ICONS.close}</button></div><div class="color-picker-main"><input type="color" id="cp-native" value="${current}"><div><label for="cp-hex">HEXコード</label><input class="input" id="cp-hex" value="${current}" maxlength="7"><span class="field__error" id="cp-error"></span></div></div><label>色相 <output id="cp-h-out">${hsl.h}</output><input type="range" id="cp-h" min="0" max="360" value="${hsl.h}"></label><label>彩度 <output id="cp-s-out">${hsl.s}</output><input type="range" id="cp-s" min="0" max="100" value="${hsl.s}"></label><label>明度 <output id="cp-l-out">${hsl.l}</output><input type="range" id="cp-l" min="0" max="100" value="${hsl.l}"></label>`;
   document.body.appendChild(pop); const rect=anchor.getBoundingClientRect(); pop.style.left=`${Math.max(12,Math.min(window.innerWidth-300,rect.left))}px`; pop.style.top=`${Math.max(12,Math.min(window.innerHeight-390,rect.bottom+8))}px`;
   const sync=(hex, source)=>{current=normalizeHex(hex)||current;const values=rgbToHsl(current);if(source!=='native')$('#cp-native',pop).value=current.toLowerCase();if(source!=='hex')$('#cp-hex',pop).value=current;['h','s','l'].forEach((key)=>{if(source!==key)$(`#cp-${key}`,pop).value=values[key];$(`#cp-${key}-out`,pop).textContent=values[key];});$('#cp-error',pop).textContent='';onChange(current);};
   $('#cp-native',pop).addEventListener('input',(e)=>sync(e.target.value,'native'));
@@ -208,18 +235,46 @@ function projectStepsForDate(dateStr, includeOverdue) {
 
 /* ===================== タブ切替 ===================== */
 let currentTab = 'home';
-let projectsViewMode = 'list';
+let projectsStatusFilter = 'in_progress';
+let projectsSectionMode = 'projects';
+
+function parseMoneyInput(value) { const normalized=String(value == null ? '' : value).replace(/,/g,'').trim(); return normalized === '' ? NaN : Number(normalized); }
+function formatMoneyInput(value) { const number=parseMoneyInput(value); return Number.isFinite(number) ? Math.max(0,Math.trunc(number)).toLocaleString('ja-JP') : ''; }
+function wireMoneyInputs(root) { $all('[data-money-input]',root||document).forEach((input)=>{ input.value=formatMoneyInput(input.value); input.addEventListener('input',()=>{const start=input.selectionStart;const oldLength=input.value.length;input.value=formatMoneyInput(input.value.replace(/[^0-9]/g,''));const next=Math.max(0,(start||0)+input.value.length-oldLength);try{input.setSelectionRange(next,next);}catch(e){}}); }); }
+function canShareFiles() { try { return !!(navigator.share && navigator.canShare && navigator.canShare({files:[new File(['x'],'x.jpg',{type:'image/jpeg'})]})); } catch(e) { return false; } }
+function outputJpgCanvas(canvas, filename, share) { if(share){canvas.toBlob(async(blob)=>{if(!blob)return;const file=new File([blob],filename,{type:'image/jpeg'});try{await navigator.share({files:[file],title:filename.replace(/\.jpg$/,'')});}catch(error){if(error&&error.name!=='AbortError')showToast('共有できませんでした','error');}},'image/jpeg',.92);return;}const a=document.createElement('a');a.href=canvas.toDataURL('image/jpeg',.92);a.download=filename;document.body.appendChild(a);a.click();a.remove(); }
+const dragHandleSvg='<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h12M4 10h12M4 14h12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+function wirePointerReorder(container,rowSelector,onDrop){
+  if(!container)return;
+  $all('.drag-handle',container).forEach((handle)=>handle.addEventListener('pointerdown',(event)=>{
+    if(event.button!==undefined&&event.button!==0)return;
+    const row=handle.closest(rowSelector);if(!row||row.dataset.deliveryStep==='true')return;
+    event.preventDefault();
+    const rows=$all(rowSelector,container),fromIndex=rows.indexOf(row),rects=rows.map((item)=>item.getBoundingClientRect());if(fromIndex<0)return;
+    const deliveryIndex=rows.findIndex((item)=>item.dataset.deliveryStep==='true');
+    const maxIndex=deliveryIndex<0?rows.length-1:deliveryIndex-1;
+    const pointerId=event.pointerId,startY=event.clientY;
+    let latestY=startY,targetIndex=Math.min(fromIndex,maxIndex),frame=0,finished=false;
+    row.classList.add('is-dragging');document.body.classList.add('is-reordering');
+    const paint=()=>{frame=0;let next=rects.slice(0,maxIndex+1).findIndex((rect)=>latestY<rect.top+rect.height/2);if(next<0)next=maxIndex;targetIndex=Math.max(0,Math.min(maxIndex,next));const preview=rows.slice();preview.splice(fromIndex,1);preview.splice(targetIndex,0,row);rows.forEach((item,index)=>{item.style.transform=item===row?`translateY(${latestY-startY}px)`:`translateY(${rects[preview.indexOf(item)].top-rects[index].top}px)`;});};
+    const move=(e)=>{if(e.pointerId!==pointerId)return;e.preventDefault();latestY=e.clientY;if(!frame)frame=requestAnimationFrame(paint);};
+    const finish=(e)=>{if(finished||(e.pointerId!==undefined&&e.pointerId!==pointerId))return;finished=true;document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',finish);document.removeEventListener('pointercancel',finish);if(frame){cancelAnimationFrame(frame);frame=0;paint();}const finalRows=rows.slice();finalRows.splice(fromIndex,1);finalRows.splice(targetIndex,0,row);finalRows.forEach((item)=>{item.style.transform='';container.appendChild(item);});row.classList.remove('is-dragging');document.body.classList.remove('is-reordering');onDrop(finalRows);};
+    document.addEventListener('pointermove',move,{passive:false});document.addEventListener('pointerup',finish);document.addEventListener('pointercancel',finish);
+  }));
+}
 let homeMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
 function switchTab(tab) {
+  if(tab==='gallery'){tab='projects';projectsSectionMode='gallery';}
+  if(tab==='settings'){$all('.tabbar__btn').forEach((b)=>b.classList.toggle('is-active',b.dataset.tab==='settings'));openSettingsModal();return;}
   currentTab = tab;
   $all('.view').forEach((v) => v.classList.remove('is-active'));
   const view = $(`#view-${tab}`);
   if (view) view.classList.add('is-active');
   $all('.tab-btn').forEach((b) => b.classList.toggle('is-active', b.dataset.tab === tab));
-  $all('.tabbar__btn').forEach((b) => b.classList.toggle('is-active', b.dataset.tab === tab || (b.dataset.tab === 'more' && tab === 'gallery')));
+  $all('.tabbar__btn').forEach((b) => b.classList.toggle('is-active', b.dataset.tab === tab));
   renderCurrentTab();
-  window.scrollTo(0, 0);
+  const main=$('.app-main');if(main)main.scrollTo(0,0);window.scrollTo(0, 0);
 }
 
 function renderCurrentTab() {
@@ -227,7 +282,6 @@ function renderCurrentTab() {
   else if (currentTab === 'calendar') renderCalendar();
   else if (currentTab === 'projects') renderProjectsTab();
   else if (currentTab === 'money') renderMoneyTab();
-  else if (currentTab === 'gallery') renderGalleryTab();
 }
 
 /* ===================== カレンダー ===================== */
@@ -308,9 +362,9 @@ function calendarWeekHtml(anchor, events, mobile) {
 
 function calendarTodayHtml(anchor) {
   const items = projectStepsForDate(anchor, true);
-  if (!items.length) return `<div class="calendar-empty">今日の予定はありません</div>`;
+  if (!items.length) return compactEmptyHtml('listCheck','今日の予定はありません');
   return `<div class="calendar-today-list">${items.map(({ project, step, overdue }) => `
-    <div class="calendar-today-item ${overdue ? 'is-overdue' : ''}" style="--task-color:${project.color}">
+    <div class="calendar-today-item ${overdue ? 'is-overdue' : ''}" style="--task-color:${project.color}" data-action="open-project" data-project-id="${escapeHtml(project.id)}">
       <button type="button" class="checkbox" data-action="toggle-calendar-step" data-project-id="${escapeHtml(project.id)}" data-step-id="${escapeHtml(step.id)}" aria-label="完了にする"></button>
       <span class="project-color-dot" style="background:${project.color}"></span>
       <button type="button" class="calendar-today-link" data-action="open-project" data-project-id="${escapeHtml(project.id)}">
@@ -326,14 +380,14 @@ function calendarScheduleHtml(anchor, events) {
   const ranged = events.filter((event) => diffDays(event.date, anchor) >= 0 && diffDays(event.date, end) <= 0);
   const visible = [...overdue, ...ranged];
   const dates = Array.from(new Set(visible.map((event) => event.date))).sort((a, b) => diffDays(a, b));
-  if (!dates.length) return `<div class="calendar-empty">この期間にタスクはありません。</div>`;
+  if (!dates.length) return compactEmptyHtml('listCheck','この期間にタスクはありません。');
   return `<div class="calendar-schedule">${dates.map((dateStr) => {
     const date = parseDateStr(dateStr); const items = calendarEventsOn(dateStr, visible);
     return `<section class="calendar-schedule-day"><div class="calendar-schedule-date">${calendarDateNumberHtml(dateStr, 'calendar-schedule-number')}<span>${date.getMonth()+1}月 ${CALENDAR_WEEKDAYS[date.getDay()]}曜日</span></div><div class="calendar-schedule-tasks">${items.map((event) => {
       const overdueClass = event.type === 'step' && !event.done && diffDays(event.date, todayStr()) < 0 ? ' is-overdue' : '';
       const progress=projectProgress(event.project); const dueDiff=event.project.dueDate?diffDays(event.project.dueDate,todayStr()):null; const dueLabel=dueDiff===null?'':dueDiff<0?`${Math.abs(dueDiff)}日超過`:dueDiff===0?'納期は今日':`納期まで残り${dueDiff}日`;
       const periodLabel=event.step?stepPeriodLabel(event.step):'';
-      return `<div class="calendar-schedule-task${overdueClass}" style="--task-color:${event.project.color}">${event.type === 'step' ? `<button type="button" class="checkbox ${event.done ? 'is-checked' : ''}" data-action="toggle-calendar-step" data-project-id="${escapeHtml(event.project.id)}" data-step-id="${escapeHtml(event.step.id)}" aria-label="${event.done ? '未完了に戻す' : '完了にする'}">${event.done ? ICONS.check : ''}</button>` : '<span class="calendar-deadline-mark">◆</span>'}<span class="project-color-dot" style="background:${event.project.color}"></span><button type="button" class="calendar-task-link" data-action="open-project" data-project-id="${escapeHtml(event.project.id)}"><span class="calendar-task-copy"><strong>${escapeHtml(event.type === 'deadline' ? '納品' : event.title)}</strong><span>${escapeHtml(event.project.title)}${periodLabel?` ・ ${escapeHtml(periodLabel)}`:''}</span></span><span class="calendar-task-progress"><span><i style="width:${progress}%"></i></span><small>${progress}%</small></span><em class="calendar-task-due ${dueDiff!==null&&dueDiff<0?'is-overdue':''}">${escapeHtml(dueLabel)}</em></button></div>`;
+      return `<div class="calendar-schedule-task${overdueClass}" style="--task-color:${event.project.color};--task-grad:${projectGradient(event.project.color)}">${event.type === 'step' ? `<button type="button" class="checkbox ${event.done ? 'is-checked' : ''}" data-action="toggle-calendar-step" data-project-id="${escapeHtml(event.project.id)}" data-step-id="${escapeHtml(event.step.id)}" aria-label="${event.done ? '未完了に戻す' : '完了にする'}">${event.done ? ICONS.check : ''}</button>` : '<span class="calendar-deadline-mark">◆</span>'}<span class="project-color-dot" style="background:${event.project.color}"></span><button type="button" class="calendar-task-link" data-action="open-project" data-project-id="${escapeHtml(event.project.id)}"><span class="calendar-task-copy"><strong>${escapeHtml(event.type === 'deadline' ? '納品' : event.title)}</strong><span>${escapeHtml(event.project.title)}${periodLabel?` ・ ${escapeHtml(periodLabel)}`:''}</span></span><span class="calendar-task-progress"><span><i style="width:${progress}%"></i></span><small>${progress}%</small></span><em class="calendar-task-due ${dueDiff!==null&&dueDiff<0?'is-overdue':''}">${escapeHtml(dueLabel)}</em></button></div>`;
     }).join('')}</div></section>`;
   }).join('')}</div>`;
 }
@@ -351,7 +405,7 @@ function renderCalendar() {
 
 function openCalendarDaySheet(dateStr) {
   const root=$('#sheetRoot'); if(!root)return; const events=calendarEventsOn(dateStr,calendarEvents());
-  root.innerHTML=`<div class="sheet-overlay calendar-day-overlay" data-action="close-more-sheet"><section class="calendar-day-sheet" role="dialog" aria-label="${escapeHtml(formatJP(dateStr,{withYear:true,withWeekday:true}))}の予定"><div class="sheet-handle"></div><div class="calendar-day-sheet__head"><div><span>${escapeHtml(formatJP(dateStr,{withYear:true,withWeekday:true}))}</span><h2>この日の予定</h2></div><button type="button" class="icon-btn" data-action="close-calendar-day">${ICONS.close}</button></div><div class="calendar-day-sheet__list">${events.length?events.map((event)=>`<div class="calendar-day-item">${event.type==='step'?`<button type="button" class="checkbox ${event.done?'is-checked':''}" data-action="toggle-calendar-sheet-step" data-project-id="${escapeHtml(event.project.id)}" data-step-id="${escapeHtml(event.step.id)}" data-date="${dateStr}" aria-label="${event.done?'未完了に戻す':'完了にする'}">${event.done?ICONS.check:''}</button>`:'<span class="calendar-deadline-mark">◆</span>'}<span class="project-color-dot" style="background:${event.project.color}"></span><button type="button" data-action="calendar-sheet-project" data-project-id="${escapeHtml(event.project.id)}"><strong>${escapeHtml(event.type==='deadline'?'納品':event.title)}</strong><span>${escapeHtml(event.project.title)}${event.step?` ・ ${escapeHtml(stepPeriodLabel(event.step))}`:''}</span></button></div>`).join(''):'<div class="home-empty-line">予定はありません。</div>'}</div></section></div>`;
+  root.innerHTML=`<div class="sheet-overlay calendar-day-overlay" data-action="close-more-sheet"><section class="calendar-day-sheet" role="dialog" aria-label="${escapeHtml(formatJP(dateStr,{withYear:true,withWeekday:true}))}の予定"><div class="sheet-handle"></div><div class="calendar-day-sheet__head"><div><span>${escapeHtml(formatJP(dateStr,{withYear:true,withWeekday:true}))}</span><h2>この日の予定</h2></div><button type="button" class="icon-btn" data-action="close-calendar-day">${ICONS.close}</button></div><div class="calendar-day-sheet__list">${events.length?events.map((event)=>`<div class="calendar-day-item">${event.type==='step'?`<button type="button" class="checkbox ${event.done?'is-checked':''}" data-action="toggle-calendar-sheet-step" data-project-id="${escapeHtml(event.project.id)}" data-step-id="${escapeHtml(event.step.id)}" data-date="${dateStr}" aria-label="${event.done?'未完了に戻す':'完了にする'}">${event.done?ICONS.check:''}</button>`:'<span class="calendar-deadline-mark">◆</span>'}<span class="project-color-dot" style="background:${event.project.color}"></span><button type="button" data-action="calendar-sheet-project" data-project-id="${escapeHtml(event.project.id)}"><strong>${escapeHtml(event.type==='deadline'?'納品':event.title)}</strong><span>${escapeHtml(event.project.title)}${event.step?` ・ ${escapeHtml(stepPeriodLabel(event.step))}`:''}</span></button></div>`).join(''):compactEmptyHtml('listCheck','予定はありません。')}</div></section></div>`;
 }
 
 /* ===================== ホーム ===================== */
@@ -384,7 +438,7 @@ function renderHome() {
     const overdue = u.diff < 0;
     const overdueText = overdue ? `${Math.abs(u.diff)}日超過` : stepPeriodLabel(u.step);
     return `
-    <div class="todo-item ${overdue ? 'is-overdue' : ''}">
+    <div class="todo-item ${overdue ? 'is-overdue' : ''}" data-action="open-project" data-project-id="${escapeHtml(u.project.id)}">
       <span class="project-color-dot" style="background:${u.project.color}"></span>
       <button type="button" class="checkbox" data-action="toggle-step" data-project-id="${u.project.id}" data-step-id="${u.step.id}" aria-label="完了にする"></button>
       <div class="todo-item__body">
@@ -393,7 +447,7 @@ function renderHome() {
       </div>
       <div class="todo-item__due">${overdueText}</div>
     </div>`;
-  }).join('') : `<div class="home-empty-line">今日の予定はありません。</div>`;
+  }).join('') : compactEmptyHtml('listCheck','今日の予定はありません。');
   const weekDone = weekSteps.filter((item) => item.step.done).length;
   const weekPercent = weekSteps.length ? Math.round(weekDone / weekSteps.length * 100) : 0;
   const deadlineAlerts = projects.filter((p) => p.status !== 'done' && p.dueDate && diffDays(p.dueDate, todayS) <= 3).sort((a,b) => diffDays(a.dueDate,b.dueDate));
@@ -401,17 +455,13 @@ function renderHome() {
     const days = diffDays(p.dueDate, todayS); const overdue = days < 0;
     const label = overdue ? `${Math.abs(days)}日超過` : days === 0 ? '納期は今日' : `納期まで${days}日`;
     return `<button type="button" class="deadline-alert ${overdue ? 'is-overdue' : 'is-near'}" data-action="open-project" data-project-id="${escapeHtml(p.id)}"><span class="deadline-alert__icon" aria-hidden="true">⚠</span><span><strong>${label}</strong> ${escapeHtml(p.title)}</span><time>${formatJP(p.dueDate, { withWeekday:true })}</time></button>`;
-  }).join('') : `<div class="home-empty-line">3日以内の納期アラートはありません。</div>`;
+  }).join('') : compactEmptyHtml('bell','3日以内の納期アラートはありません。');
   const unpaidProjects = projects.filter((p) => p.paymentStatus !== 'paid');
   const unbilledTotal = unpaidProjects.reduce((sum, p) => sum + (p.fee || 0), 0);
   const unbilledCount = projects.filter((p) => p.paymentStatus === 'unbilled').length;
   const thisMonthTotal = projects.filter((p) => p.deliveredDate && parseDateStr(p.deliveredDate).getFullYear() === now.getFullYear() && parseDateStr(p.deliveredDate).getMonth() === now.getMonth()).reduce((s,p) => s+(p.fee||0),0);
   const monthExpenses = state.expenses.filter((e) => e.date && parseDateStr(e.date).getFullYear() === now.getFullYear() && parseDateStr(e.date).getMonth() === now.getMonth()).length;
   const todayTasks=todayItems.length;
-  const hasUserData = state.projects.length || state.clients.length || state.expenses.length || state.recurringExpenses.length || state.invoices.length || state.quotes.length || state.galleryExtras.length;
-  const backupDays = state.settings.lastBackupAt ? diffDays(todayS, state.settings.lastBackupAt) : null;
-  const showBackupReminder = hasUserData && (backupDays === null || backupDays >= 7);
-  const backupReminder = showBackupReminder ? `<button type="button" class="backup-reminder-chip" data-action="open-backup-settings">${backupDays === null ? 'まだバックアップがありません。' : `前回のバックアップから ${backupDays}日経っています。`} 設定→バックアップから保存しましょう</button>` : '';
   const seed=Number(todayS.replace(/-/g,''));
   const encouragements=['今日も一日がんばりましょう','無理しないでくださいね','休憩も仕事のうちです','小さな一歩を積み重ねましょう','焦らず、あなたのペースで進めましょう','できたことにも目を向けてみましょう','ひとつずつ片づければ大丈夫です','今日のひらめきを大切にしましょう','深呼吸して、肩の力を抜きましょう','完璧より、前に進むことを大切に','自分の作品を信じて進みましょう','今日も創作を楽しめますように'];
   const healthTips=['目の疲れには20-20-20ルール。20分ごとに20秒、遠くを見ましょう','疲労回復にはビタミンB1を含む豚肉や大豆がおすすめです','ブルーベリーやほうれん草は目にやさしい食材です','肩こりにはゆっくり肩甲骨を回してみましょう','水分補給は少しずつ、こまめに取りましょう','1時間に一度は立って背中を伸ばしましょう','手首をやさしく回して、描く手をいたわりましょう','足首を動かすと座りっぱなしの血流改善に役立ちます','画面の明るさを部屋に合わせると目の負担を減らせます','昼食後の短い散歩は気分転換になります','寝る前は画面から少し離れて目と頭を休めましょう','深い呼吸を3回すると緊張をゆるめやすくなります'];
@@ -419,19 +469,44 @@ function renderHome() {
   const encouragement=encouragements[seed%encouragements.length];
   const healthTip=healthTips[(seed*7+3)%healthTips.length];
   container.innerHTML = `
-    <section class="home-greeting"><img src="assets/logo.png" onerror="this.onerror=null;this.src='assets/logo.svg'" alt=""><div><span>${escapeHtml(APP_NAME)}</span><h1>${greeting}</h1><p class="home-task-message">${escapeHtml(taskMessage)}</p><p class="home-encouragement">${escapeHtml(encouragement)}</p><p class="home-health-tip">☕ ${escapeHtml(healthTip)}</p>${backupReminder}</div></section>
+    <section class="home-greeting"><div class="home-greeting__top"><div class="home-greeting__main"><span>${escapeHtml(APP_NAME)}</span><h1>${greeting}</h1><p class="home-task-message">${escapeHtml(taskMessage)}</p></div><button type="button" class="home-avatar" data-action="edit-avatar" aria-label="アバターを変更"><img id="homeAvatar" src="assets/logo.png" onerror="this.onerror=null;this.src='assets/logo.svg'" alt=""></button></div><div class="home-message__bubble"><p>${escapeHtml(encouragement)}</p><p>☕ ${escapeHtml(healthTip)}</p></div></section>
     <div class="home-dashboard-grid">
-      <section class="creative-card weekly-progress-card"><div><span class="home-kicker">今週の進捗</span><h2>制作のペース</h2><p>${weekSteps.length ? '今週が期限の工程を集計しています。' : '今週の工程はありません'}</p></div><div class="progress-ring" style="--progress:${weekPercent}%"><div><strong>${weekPercent}%</strong><span>${weekDone} / ${weekSteps.length}件</span></div></div></section>
-      <section class="creative-card home-today-card"><h2>今日の予定</h2><div class="todo-list">${todoHtml}</div></section>
-      <section class="creative-card home-alert-card"><h2>納期アラート</h2><div class="deadline-alerts">${alertHtml}</div></section>
+      <section class="creative-card weekly-progress-card"><div><span class="home-kicker">${ICONS.gauge}今週の進捗</span><h2>制作のペース</h2><p>${weekSteps.length ? '今週が期限の工程を集計しています。' : '今週の工程はありません'}</p></div><div class="progress-ring" style="--progress:${weekPercent}%"><div><strong>${weekPercent}%</strong><span>${weekDone} / ${weekSteps.length}件</span></div></div></section>
+      <section class="creative-card home-today-card"><h2 class="home-section-title">${ICONS.listCheck}<span>今日の予定</span></h2><div class="todo-list">${todoHtml}</div></section>
+      <section class="creative-card home-alert-card"><h2 class="home-section-title">${ICONS.bell}<span>納期アラート</span></h2><div class="deadline-alerts">${alertHtml}</div></section>
+      ${recentWorksHtml()}
       <section class="home-business-grid">
-        <button type="button" class="business-card" data-action="home-money-card" data-subtab="ledger"><span>未請求</span><strong>${unbilledCount}件</strong></button>
-        <button type="button" class="business-card" data-action="home-money-card" data-subtab="ledger"><span>未入金</span><strong>${formatMoney(unbilledTotal)}</strong></button>
-        <button type="button" class="business-card" data-action="home-money-card" data-subtab="ledger"><span>今月の売上</span><strong>${formatMoney(thisMonthTotal)}</strong></button>
-        <button type="button" class="business-card" data-action="home-money-card" data-subtab="expenses"><span>経費・領収書</span><strong>${monthExpenses}件</strong></button>
+        <button type="button" class="business-card" data-action="home-money-card" data-subtab="ledger"><i class="business-card__icon">${ICONS.invoice}</i><span>未請求</span><strong>${unbilledCount}件</strong></button>
+        <button type="button" class="business-card" data-action="home-money-card" data-subtab="ledger"><i class="business-card__icon">${ICONS.wallet}</i><span>未入金</span><strong>${formatMoney(unbilledTotal)}</strong></button>
+        <button type="button" class="business-card" data-action="home-money-card" data-subtab="ledger"><i class="business-card__icon">${ICONS.chart}</i><span>今月の売上</span><strong>${formatMoney(thisMonthTotal)}</strong></button>
+        <button type="button" class="business-card" data-action="home-money-card" data-subtab="expenses"><i class="business-card__icon">${ICONS.receipt}</i><span>経費・領収書</span><strong>${monthExpenses}件</strong></button>
       </section>
     </div>
   `;
+  if(state.settings.avatarImageId)imageUrl(state.settings.avatarImageId).then((url)=>{const avatar=$('#homeAvatar');if(avatar&&url){avatar.src=url;avatar.classList.add('is-custom');}});
+  hydrateImages(container);
+}
+
+function recentWorksHtml(){const items=collectGalleryItems().slice(0,6);if(!items.length)return '';return `<section class="creative-card home-recent-works"><div class="home-recent-head"><h2 class="home-section-title">${ICONS.galleryImage}<span>最近の作品</span></h2><button type="button" class="text-link" data-action="show-all-works">すべて見る ›</button></div><div class="home-recent-scroll">${items.map((item)=>`<button type="button" class="home-work-card" data-action="open-gallery-item" data-key="${escapeHtml(galleryItemKey(item))}"><img data-image-id="${escapeHtml(item.imageId)}" alt=""><span>${escapeHtml(item.title||'無題')}</span></button>`).join('')}</div></section>`;}
+
+function openAvatarModal(){const has=!!state.settings.avatarImageId;const overlay=openModal(`<div class="modal__header"><h2 class="modal__title">アバター</h2><button type="button" class="icon-btn" data-action="close-modal">${ICONS.close}</button></div><div class="modal__body"><input type="file" id="avatar-file" accept="image/*" hidden><button type="button" class="btn btn--primary" id="choose-avatar">画像を選ぶ</button>${has?'<button type="button" class="btn" data-action="reset-avatar">初期に戻す</button>':''}</div>`);$('#choose-avatar',overlay).addEventListener('click',()=>$('#avatar-file',overlay).click());$('#avatar-file',overlay).addEventListener('change',(e)=>{const file=e.target.files[0];if(file)openAvatarCropModal(file);});}
+
+function openAvatarCropModal(file){
+  const sourceUrl=URL.createObjectURL(file);
+  const overlay=openModal(`<div class="modal__header"><h2 class="modal__title">画像を調整</h2><button type="button" class="icon-btn" id="avatar-crop-cancel" aria-label="キャンセル">${ICONS.close}</button></div><div class="modal__body"><p class="field__hint">画像をドラッグして位置を調整できます。</p><div class="avatar-crop-stage"><img id="avatar-crop-image" alt="トリミングする画像"><div class="avatar-crop-mask" aria-hidden="true"></div></div><label class="avatar-crop-zoom">拡大・縮小<input type="range" id="avatar-crop-range" min="1" max="3" step="0.01" value="1"></label><div class="modal__footer"><button type="button" class="btn" id="avatar-crop-back">キャンセル</button><button type="button" class="btn btn--primary" id="avatar-crop-save">決定</button></div></div>`,{narrow:true});
+  const stage=$('.avatar-crop-stage',overlay),image=$('#avatar-crop-image',overlay),range=$('#avatar-crop-range',overlay);
+  let offsetX=0,offsetY=0,zoom=1,baseScale=1,displaySize=0,cleaned=false,drag=null;
+  const cleanup=()=>{if(cleaned)return;cleaned=true;URL.revokeObjectURL(sourceUrl);};
+  new MutationObserver((records,observer)=>{if(!overlay.isConnected){cleanup();observer.disconnect();}}).observe(document.getElementById('modalRoot'),{childList:true});
+  const metrics=()=>{const size=stage.clientWidth,diameter=size*.72,left=(size-diameter)/2;return {size,diameter,left};};
+  const render=()=>{if(!image.naturalWidth)return;const m=metrics();baseScale=Math.max(m.diameter/image.naturalWidth,m.diameter/image.naturalHeight);const width=image.naturalWidth*baseScale*zoom,height=image.naturalHeight*baseScale*zoom;const limitX=Math.max(0,(width-m.diameter)/2),limitY=Math.max(0,(height-m.diameter)/2);offsetX=Math.max(-limitX,Math.min(limitX,offsetX));offsetY=Math.max(-limitY,Math.min(limitY,offsetY));image.style.width=`${width}px`;image.style.height=`${height}px`;image.style.left=`${(m.size-width)/2+offsetX}px`;image.style.top=`${(m.size-height)/2+offsetY}px`;displaySize=m.size;};
+  image.onload=render;image.src=sourceUrl;
+  range.addEventListener('input',()=>{zoom=Number(range.value);render();});
+  stage.addEventListener('pointerdown',(event)=>{event.preventDefault();drag={id:event.pointerId,x:event.clientX,y:event.clientY,startX:offsetX,startY:offsetY};stage.setPointerCapture(event.pointerId);});
+  stage.addEventListener('pointermove',(event)=>{if(!drag||event.pointerId!==drag.id)return;event.preventDefault();offsetX=drag.startX+event.clientX-drag.x;offsetY=drag.startY+event.clientY-drag.y;render();});
+  const endDrag=(event)=>{if(drag&&event.pointerId===drag.id)drag=null;};stage.addEventListener('pointerup',endDrag);stage.addEventListener('pointercancel',endDrag);
+  const cancel=()=>{cleanup();closeModal();};$('#avatar-crop-cancel',overlay).addEventListener('click',cancel);$('#avatar-crop-back',overlay).addEventListener('click',cancel);
+  $('#avatar-crop-save',overlay).addEventListener('click',()=>{if(!image.naturalWidth)return;const button=$('#avatar-crop-save',overlay);button.disabled=true;const m=metrics();if(displaySize!==m.size)render();const canvas=document.createElement('canvas');canvas.width=512;canvas.height=512;const ratio=512/m.diameter,ctx=canvas.getContext('2d');ctx.fillStyle='#FFFFFF';ctx.fillRect(0,0,512,512);ctx.drawImage(image,(parseFloat(image.style.left)-m.left)*ratio,(parseFloat(image.style.top)-m.left)*ratio,parseFloat(image.style.width)*ratio,parseFloat(image.style.height)*ratio);canvas.toBlob(async(blob)=>{if(!blob){button.disabled=false;showToast('画像を切り出せませんでした','error');return;}try{const old=state.settings.avatarImageId,newId=await imageSave(blob);state.settings.avatarImageId=newId;saveState();if(old)await imageDelete(old);cleanup();closeModal();renderHome();showToast('アバターを変更しました');}catch(error){console.error(error);button.disabled=false;showToast('画像を保存できませんでした','error');}},'image/jpeg',.9);});
 }
 
 function projectCardHtml(p) {
@@ -448,9 +523,9 @@ function projectCardHtml(p) {
       </div>
       ${statusBadgeHtml(p)}
     </div>
-    <div class="progress-bar"><div class="progress-bar__fill ${p.status === 'done' ? 'is-done' : ''}" style="width:${progress}%"></div></div>
+    <div class="progress-bar"><div class="progress-bar__fill" style="width:${progress}%;background:${projectGradient(p.color)}"></div></div>
     <div class="project-card__foot project-card__foot--milestones">
-      <strong class="project-next-step ${overdue ? 'is-overdue' : ''}">次: ${next ? `${escapeHtml(next.name)} ${formatShortDate(stepStartDate(next))}` : '全工程完了'}</strong>
+      <strong class="project-next-step ${overdue ? 'is-overdue' : ''}">次やること: ${next ? `${escapeHtml(next.name)} ${formatShortDate(stepStartDate(next))}` : '全工程完了'}</strong>
       <span>ラフ提出: ${formatShortDate(keyDates.rough&&keyDates.rough.dueDate)}</span>
       <span class="project-delivery-date">⚑ 納品: ${formatShortDate(keyDates.deliveryDate)}</span>
     </div>
@@ -460,35 +535,30 @@ function projectCardHtml(p) {
 /* ===================== 案件タブ：一覧／タイムライン ===================== */
 function renderProjectsTab() {
   const listWrap = $('#projectsListWrap');
-  const timelineWrap = $('#projectsTimelineWrap');
-  if (!listWrap || !timelineWrap) return;
+  if (!listWrap) return;
+  const projectContent=$('#projectsSectionContent'),galleryContent=$('#galleryContent');
+  $all('#projectsSectionToggle .segmented__btn').forEach((button)=>button.classList.toggle('is-active',button.dataset.section===projectsSectionMode));
+  projectContent.style.display=projectsSectionMode==='projects'?'':'none';galleryContent.style.display=projectsSectionMode==='gallery'?'':'none';
+  if(projectsSectionMode==='gallery'){renderGalleryTab();return;}
 
   if (state.projects.length === 0) {
     listWrap.style.display = '';
-    timelineWrap.style.display = 'none';
     listWrap.innerHTML = emptyStateHtml('folder', '案件がまだありません', '「案件を追加」から最初の案件を登録しましょう。', 'open-new-project', '案件を追加');
-    timelineWrap.innerHTML = '';
     return;
   }
 
-  listWrap.style.display = projectsViewMode === 'list' ? '' : 'none';
-  timelineWrap.style.display = projectsViewMode === 'timeline' ? '' : 'none';
+  listWrap.style.display = '';
 
-  if (projectsViewMode === 'list') {
-    const inProgress = state.projects.filter((p) => p.status !== 'done').sort((a, b) => diffDays(a.dueDate, b.dueDate));
-    const done = state.projects.filter((p) => p.status === 'done').sort((a, b) => diffDays(b.dueDate, a.dueDate));
+  const statusToggle=$('#projectsStatusToggle');
+  const inProgress = state.projects.filter((p) => p.status !== 'done').sort((a, b) => diffDays(a.dueDate, b.dueDate));
+  const done = state.projects.filter((p) => p.status === 'done').sort((a, b) => diffDays(b.dueDate, a.dueDate));
+  if(statusToggle) statusToggle.innerHTML=`<button class="segmented__btn ${projectsStatusFilter==='in_progress'?'is-active':''}" data-action="filter-project-status" data-status="in_progress" type="button">進行中 ${inProgress.length}</button><button class="segmented__btn ${projectsStatusFilter==='done'?'is-active':''}" data-action="filter-project-status" data-status="done" type="button">完了 ${done.length}</button>`;
+  { const shown=projectsStatusFilter==='done'?done:inProgress;
     listWrap.innerHTML = `
       <div class="home-block">
-        <h2 class="section-title">進行中 <span class="muted-count">${inProgress.length}件</span></h2>
-        ${inProgress.length ? `<div class="project-list">${inProgress.map(projectRowHtml).join('')}</div>` : `<p class="field__hint">進行中の案件はありません。</p>`}
-      </div>
-      <div class="home-block">
-        <h2 class="section-title">完了 <span class="muted-count">${done.length}件</span></h2>
-        ${done.length ? `<div class="project-list">${done.map(projectRowHtml).join('')}</div>` : `<p class="field__hint">完了した案件はありません。</p>`}
+        ${shown.length ? `<div class="project-list">${shown.map(projectRowHtml).join('')}</div>` : compactEmptyHtml('sectionFolder',`${projectsStatusFilter==='done'?'完了した':'進行中の'}案件はありません。`)}
       </div>
     `;
-  } else {
-    timelineWrap.innerHTML = timelineHtml();
   }
 }
 
@@ -509,54 +579,11 @@ function projectRowHtml(p) {
       <div class="project-row__rough">ラフ提出: ${formatShortDate(keyDates.rough&&keyDates.rough.dueDate)}</div>
     </div>
     <div class="project-row__progress">
-      <div class="project-row__progress-label"><strong>${next ? `次: ${escapeHtml(next.name)} ${formatShortDate(stepStartDate(next))}` : '全工程完了'}</strong><span>${progress}%</span></div>
-      <div class="progress-bar"><div class="progress-bar__fill ${p.status === 'done' ? 'is-done' : ''}" style="width:${progress}%"></div></div>
+      <div class="project-row__progress-label"><strong>${next ? `次やること: ${escapeHtml(next.name)} ${formatShortDate(stepStartDate(next))}` : '全工程完了'}</strong><span>${progress}%</span></div>
+      <div class="progress-bar"><div class="progress-bar__fill" style="width:${progress}%;background:${projectGradient(p.color)}"></div></div>
     </div>
     <div class="project-row__due ${overdue ? 'is-overdue' : ''}">⚑ 納品: ${formatShortDate(keyDates.deliveryDate)}</div>
   </div>`;
-}
-
-function timelineHtml() {
-  const days = 30;
-  const start = todayStr();
-  const dayList = [];
-  for (let i = 0; i < days; i++) dayList.push(addDays(start, i));
-
-  const active = state.projects.filter((p) => p.status !== 'done' && p.steps && p.steps.length);
-  if (!active.length) return `<p class="field__hint">表示できる案件がありません。</p>`;
-
-  const header = `
-    <div class="timeline-header">
-      <div class="timeline-header__spacer"></div>
-      ${dayList.map((d) => `<div class="timeline-day ${d === start ? 'is-today' : ''}">${formatJP(d)}</div>`).join('')}
-    </div>`;
-
-  const rows = active.map((p) => {
-    let visibleBarCount = 0;
-    const barsHtml = p.steps.map((s) => {
-      const startDateForBar = stepStartDate(s);
-      const startOffset = diffDays(startDateForBar, start);
-      const endOffset = diffDays(s.dueDate, start);
-      if (endOffset < 0 || startOffset >= days) return '';
-      visibleBarCount += 1;
-      const clampedStart = Math.max(startOffset, 0);
-      const clampedEnd = Math.min(Math.max(endOffset, clampedStart), days - 1);
-      const left = clampedStart * 32;
-      const width = Math.max((clampedEnd - clampedStart + 1) * 32 - 4, 20);
-      const overdue = !s.done && endOffset < 0;
-      const cls = s.done ? 'is-done' : (overdue ? 'is-overdue' : '');
-      return `<div class="timeline-bar ${cls}" style="left:${left}px;width:${width}px;background:${p.color};color:${colorText(p.color)};${s.done ? 'opacity:.38;' : ''}" title="${escapeHtml(s.name)} (${escapeHtml(stepPeriodLabel(s))})">${escapeHtml(s.name)}</div>`;
-    }).join('');
-    if (visibleBarCount === 0) return '';
-    return `
-    <div class="timeline-row">
-      <div class="timeline-row__label">${escapeHtml(p.title)}</div>
-      <div class="timeline-row__track" style="width:${days * 32}px;">${barsHtml}</div>
-    </div>`;
-  }).filter(Boolean).join('');
-
-  if (!rows) return `<p class="field__hint">表示期間内に工程がある進行中の案件はありません。</p>`;
-  return `<div class="timeline-wrap"><div style="width:${180 + days * 32}px;">${header}${rows}</div></div>`;
 }
 
 /* ===================== 案件：新規作成モーダル ===================== */
@@ -593,7 +620,7 @@ function openNewProjectModal() {
         <div class="field-row">
           <div class="field">
             <label class="field__label">報酬額（円）<span class="req">必須</span></label>
-            <input class="input" type="number" min="0" step="1" id="pf-fee" required placeholder="例: 80000">
+            <input class="input" type="text" inputmode="numeric" data-money-input id="pf-fee" required placeholder="例: 80,000">
           </div>
           <div class="field project-flags-field">
             <div class="checkbox-row withholding-help-wrap">
@@ -602,7 +629,7 @@ function openNewProjectModal() {
               <button type="button" class="help-icon" data-action="toggle-withholding-help" aria-label="源泉徴収の説明">?</button>
               <div class="field-help-popover" hidden>法人のクライアントから直接お仕事を受け、報酬から源泉徴収税10.21%が差し引かれて振り込まれる場合にONにします。ココナラなどのサイト経由や、個人のお客様との取引では通常引かれないためOFFのままにします。</div>
             </div>
-            <div class="checkbox-row"><input type="checkbox" id="pf-coconala"><label for="pf-coconala">ココナラ経由</label></div>
+            <label class="field__label" for="pf-platform">経由プラットフォーム</label><select class="select" id="pf-platform"><option value="">なし</option>${(state.settings.platforms||[]).map((platform)=>`<option value="${escapeHtml(platform.id)}">${escapeHtml(platform.name)}</option>`).join('')}</select>
           </div>
         </div>
         <div class="platform-fee-preview" id="pf-platform-fee" hidden></div>
@@ -633,7 +660,8 @@ function openNewProjectModal() {
   const clientNewInput = $('#pf-client-new', overlay);
   const dueInput = $('#pf-due', overlay);
   const feeInput = $('#pf-fee', overlay);
-  const coconalaInput = $('#pf-coconala', overlay);
+  wireMoneyInputs(overlay);
+  const platformInput = $('#pf-platform', overlay);
   $('#pf-color-swatches', overlay).addEventListener('click', (e) => {
     const add = e.target.closest('.color-swatch-add');
     if (add) { openColorPicker(add, selectedColor, (color) => { selectedColor=color; $('#pf-color-swatches',overlay).innerHTML=colorSwatchesHtml(selectedColor,'new-project'); }); return; }
@@ -644,7 +672,8 @@ function openNewProjectModal() {
 
   function renderDraftStepsPreview() {
     const previewEl = $('#pf-steps-preview', overlay);
-    previewEl.innerHTML = draftSteps.map((s, index) => `<div class="step-preview-row"><span>${escapeHtml(s.name)}</span><label>開始<input class="input" type="date" data-pf-step-start="${index}" value="${s.startDate}"></label><span>〜</span><label>終了<input class="input" type="date" data-pf-step-due="${index}" value="${s.dueDate}"></label></div>`).join('');
+    previewEl.innerHTML = draftSteps.map((s, index) => {const isDelivery=String(s.name||'').includes('納品');return `<div class="step-preview-row" data-draft-index="${index}" data-delivery-step="${isDelivery}">${isDelivery?'<span class="drag-handle-spacer"></span>':`<button type="button" class="drag-handle" aria-label="${escapeHtml(s.name)}を並び替え">${dragHandleSvg}</button>`}<strong>${escapeHtml(s.name)}</strong><div class="step-preview-dates"><input class="input" aria-label="${escapeHtml(s.name)}の開始日" type="date" data-pf-step-start="${index}" value="${s.startDate}"><span>〜</span><input class="input" aria-label="${escapeHtml(s.name)}の終了日" type="date" data-pf-step-due="${index}" value="${s.dueDate}"></div><small>（${diffDays(s.dueDate,s.startDate)+1}日）</small></div>`;}).join('');
+    wirePointerReorder(previewEl,'.step-preview-row',(rows)=>{draftSteps=rows.map((row)=>draftSteps[Number(row.dataset.draftIndex)]);renderDraftStepsPreview();});
   }
 
   function updatePreview() {
@@ -667,10 +696,10 @@ function openNewProjectModal() {
 
   function updatePlatformFeePreview() {
     const preview = $('#pf-platform-fee', overlay);
-    const fee = Math.max(0, Number(feeInput.value) || 0);
-    const rate = Number(state.settings.platformFeeRate) || 0;
+    const fee = Math.max(0, parseMoneyInput(feeInput.value) || 0);
+    const platform=(state.settings.platforms||[]).find((item)=>item.id===platformInput.value);const rate=Number(platform&&platform.feeRate)||0;
     const amount = Math.floor(fee * rate);
-    preview.hidden = !coconalaInput.checked;
+    preview.hidden = !platform;
     preview.textContent = `手数料 ${formatMoney(amount)}（${(rate * 100).toFixed(2).replace(/\.00$/, '')}%）／振込額 ${formatMoney(fee - amount)}`;
   }
 
@@ -680,7 +709,7 @@ function openNewProjectModal() {
   });
   dueInput.addEventListener('input', updatePreview);
   feeInput.addEventListener('input', updatePlatformFeePreview);
-  coconalaInput.addEventListener('change', updatePlatformFeePreview);
+  platformInput.addEventListener('change', updatePlatformFeePreview);
   $('#pf-steps-preview', overlay).addEventListener('change', (e) => {
     const startIndex = e.target.dataset.pfStepStart;
     const dueIndex = e.target.dataset.pfStepDue;
@@ -704,7 +733,7 @@ function openNewProjectModal() {
     const title = $('#pf-title', overlay).value.trim();
     const due = dueInput.value;
     const feeRaw = $('#pf-fee', overlay).value;
-    const fee = Number(feeRaw);
+    const fee = parseMoneyInput(feeRaw);
     if (!title) { showToast('案件タイトルを入力してください', 'error'); return; }
     if (!due) { showToast('納期を選択してください', 'error'); return; }
     if (feeRaw === '' || isNaN(fee) || fee < 0) { showToast('報酬額を正しく入力してください', 'error'); return; }
@@ -729,7 +758,7 @@ function openNewProjectModal() {
 
     const project = {
       id: uuid(), title, clientId, clientName, orderedDate: todayStr(), dueDate: due,
-      fee, hasWithholding: $('#pf-withholding', overlay).checked, isCoconala: coconalaInput.checked,
+      fee, hasWithholding: $('#pf-withholding', overlay).checked, platformId:platformInput.value||null,isCoconala:false,
       memo: $('#pf-memo', overlay).value.trim(),
       status: 'in_progress', steps, color: selectedColor,
       paymentStatus: 'unbilled', paidDate: null, deliveredDate: null,
@@ -778,7 +807,7 @@ function projectDetailHtml(p) {
     <div class="field-row">
       <div class="field">
         <label class="field__label">報酬額（円）</label>
-        <input class="input" type="number" min="0" id="pd-fee" value="${p.fee}">
+        <input class="input" type="text" inputmode="numeric" data-money-input id="pd-fee" value="${p.fee}">
       </div>
       <div class="field" style="display:flex;align-items:flex-end;">
         <div class="project-flags-field">
@@ -788,11 +817,11 @@ function projectDetailHtml(p) {
             <button type="button" class="help-icon" data-action="toggle-withholding-help" aria-label="源泉徴収の説明">?</button>
             <div class="field-help-popover" hidden>法人のクライアントから直接お仕事を受け、報酬から源泉徴収税10.21%が差し引かれて振り込まれる場合にONにします。ココナラなどのサイト経由や、個人のお客様との取引では通常引かれないためOFFのままにします。</div>
           </div>
-          <div class="checkbox-row"><input type="checkbox" id="pd-coconala" ${p.isCoconala ? 'checked' : ''}><label for="pd-coconala">ココナラ経由</label></div>
+          <label class="field__label" for="pd-platform">経由プラットフォーム</label><select class="select" id="pd-platform"><option value="">なし</option>${(state.settings.platforms||[]).map((platform)=>`<option value="${escapeHtml(platform.id)}" ${p.platformId===platform.id?'selected':''}>${escapeHtml(platform.name)}</option>`).join('')}</select>
         </div>
       </div>
     </div>
-    ${p.isCoconala ? `<div class="platform-fee-preview">手数料 ${formatMoney(platformFeeAmount(p))}（${(Number(state.settings.platformFeeRate) * 100).toFixed(2).replace(/\.00$/, '')}%）／振込額 ${formatMoney((p.fee || 0) - platformFeeAmount(p))}</div>` : ''}
+    ${p.platformId ? `<div class="platform-fee-preview">手数料 ${formatMoney(platformFeeAmount(p))}（${((Number(((state.settings.platforms||[]).find((item)=>item.id===p.platformId)||{}).feeRate)||0)*100).toFixed(2).replace(/\.00$/, '')}%）／振込額 ${formatMoney((p.fee || 0) - platformFeeAmount(p))}</div>` : ''}
     <div class="field">
       <label class="field__label">メモ</label>
       <textarea class="textarea" id="pd-memo">${escapeHtml(p.memo || '')}</textarea>
@@ -800,7 +829,7 @@ function projectDetailHtml(p) {
 
     <div class="field">
       <label class="field__label">進捗 ${progress}%</label>
-      <div class="progress-bar"><div class="progress-bar__fill ${p.status === 'done' ? 'is-done' : ''}" style="width:${progress}%"></div></div>
+      <div class="progress-bar"><div class="progress-bar__fill" style="width:${progress}%;background:${projectGradient(p.color)}"></div></div>
     </div>
 
     <div class="field">
@@ -852,9 +881,9 @@ function stepRowHtml(s) {
   const overdue = !s.done && diffDays(s.dueDate, todayStr()) < 0;
   const isDelivery = String(s.name || '').includes('納品');
   return `
-  <div class="step-check-row ${s.done ? 'is-done' : ''} ${overdue ? 'is-overdue' : ''}" data-step-id="${s.id}">
+  <div class="step-check-row ${s.done ? 'is-done' : ''} ${overdue ? 'is-overdue' : ''}" data-step-id="${s.id}" data-delivery-step="${isDelivery}">
+    ${isDelivery?'<span class="drag-handle-spacer"></span>':`<button type="button" class="drag-handle" aria-label="${escapeHtml(s.name)}を並び替え">${dragHandleSvg}</button>`}
     <button class="checkbox ${s.done ? 'is-checked' : ''}" type="button" data-action="toggle-step-detail" data-step-id="${s.id}">${s.done ? ICONS.check : ''}</button>
-    <div class="step-order-controls"><button type="button" data-action="move-step-up" data-step-id="${s.id}" aria-label="上へ移動">↑</button><button type="button" data-action="move-step-down" data-step-id="${s.id}" aria-label="下へ移動">↓</button></div>
     <div class="step-check-row__name">${isDelivery ? '<span class="delivery-step-marker" aria-label="納品工程">⚑</span>' : ''}${escapeHtml(s.name)}</div>
     <div class="step-check-row__dates"><label>開始<input type="date" value="${stepStartDate(s)}" data-action="edit-step-date" data-step-date-field="startDate" data-step-id="${s.id}"></label><span>〜</span><label>終了<input type="date" value="${s.dueDate}" data-action="edit-step-date" data-step-date-field="dueDate" data-step-id="${s.id}"></label></div>
     <button class="icon-btn step-check-row__remove btn--sm" type="button" data-action="remove-step" data-step-id="${s.id}" title="削除">${ICONS.trash}</button>
@@ -866,6 +895,8 @@ function imageThumbHtml(imgId, projectId) {
 }
 
 function wireProjectDetailEvents(overlay, projectId) {
+  wireMoneyInputs(overlay);
+  wirePointerReorder($('#pd-steps',overlay),'.step-check-row',(rows)=>{const project=state.projects.find((item)=>item.id===projectId);if(!project)return;const byId=new Map(project.steps.map((step)=>[step.id,step]));project.steps=rows.map((row)=>byId.get(row.dataset.stepId)).filter(Boolean);project.updatedAt=new Date().toISOString();saveState();renderCurrentTab();});
   const getProject = () => state.projects.find((p) => p.id === projectId);
   $('#pd-color-swatches', overlay).addEventListener('click', (e) => {
     const add = e.target.closest('.color-swatch-add');
@@ -882,7 +913,7 @@ function wireProjectDetailEvents(overlay, projectId) {
   });
   $('#pd-fee', overlay).addEventListener('change', (e) => {
     const p = getProject(); if (!p) return;
-    const v = Number(e.target.value);
+    const v = parseMoneyInput(e.target.value);
     if (isNaN(v) || v < 0) { showToast('報酬額が不正です', 'error'); e.target.value = p.fee; return; }
     p.fee = v; p.updatedAt = new Date().toISOString(); syncAutoExpenseForProject(p);
     saveState(); renderCurrentTab();
@@ -894,9 +925,9 @@ function wireProjectDetailEvents(overlay, projectId) {
     saveState(); renderCurrentTab();
     refreshProjectDetail(overlay, projectId);
   });
-  $('#pd-coconala', overlay).addEventListener('change', (e) => {
+  $('#pd-platform', overlay).addEventListener('change', (e) => {
     const p = getProject(); if (!p) return;
-    p.isCoconala = e.target.checked; p.updatedAt = new Date().toISOString();
+    p.platformId = e.target.value||null;p.isCoconala=false; p.updatedAt = new Date().toISOString();
     syncAutoExpenseForProject(p); saveState(); renderCurrentTab(); refreshProjectDetail(overlay, projectId);
   });
   $('#pd-memo', overlay).addEventListener('change', (e) => {
@@ -1027,7 +1058,7 @@ function ledgerHtml(year) {
     <div class="summary-tile annual-total"><div class="summary-tile__label">${year}年の売上合計</div><div class="summary-tile__value">${formatMoney(total)}</div></div>
     <div class="sales-chart sales-chart--12">${monthly.map((value, month) => `<button type="button" class="sales-chart__col ${selectedYear===year&&selectedMonth===month?'is-selected':''}" data-action="select-ledger-month" data-year="${year}" data-month="${month}"><div class="sales-chart__bar-wrap"><div class="sales-chart__bar" style="height:${Math.max(3, value / max * 100)}%" data-tooltip="${formatMoney(value)}"></div></div><div class="sales-chart__label">${month + 1}月</div></button>`).join('')}</div>
     <div class="info-box">確定申告では売上は入金日ではなく「納品日（役務提供完了日）」に計上します（発生主義）。納期より早く納めた場合は、実際の納品日の月の売上になります。ココナラ等の手数料は売上から差し引かず、「支払手数料」として経費に計上します（総額主義）。</div>
-    ${projects.length === 0 ? `<p class="field__hint">この年に計上された売上はありません。</p>` : `
+    ${projects.length === 0 ? compactEmptyHtml('chart','この年に計上された売上はありません。') : `
     <div class="table-wrap"><table class="data-table">
       <thead><tr><th>計上日</th><th>案件名</th><th>クライアント</th><th class="num-cell">金額</th><th class="num-cell">源泉徴収額</th><th class="num-cell">手取り</th><th>入金状況</th></tr></thead>
       <tbody>
@@ -1069,7 +1100,7 @@ function expensesHtml(year) {
   return `
     <div class="expense-overview">
       <div class="summary-tile"><div class="summary-tile__label">${year}年の経費合計</div><div class="summary-tile__value">${formatMoney(total)}</div></div>
-      <div><h2 class="section-title">カテゴリ別内訳</h2><div class="summary-bars">${Object.entries(byCategory).sort((a,b) => b[1]-a[1]).map(([cat, amount]) => `<div class="summary-bar-row"><div class="summary-bar-row__label">${escapeHtml(cat)}</div><div class="summary-bar-row__track"><div class="summary-bar-row__fill" style="width:${amount/maxCat*100}%"></div></div><div class="summary-bar-row__value">${formatMoney(amount)}</div></div>`).join('') || '<span class="field__hint">経費の記録はありません。</span>'}</div></div>
+      <div><h2 class="section-title money-section-title">${ICONS.receipt}<span>カテゴリ別内訳</span></h2><div class="summary-bars">${Object.entries(byCategory).sort((a,b) => b[1]-a[1]).map(([cat, amount]) => `<div class="summary-bar-row"><div class="summary-bar-row__label">${escapeHtml(cat)}</div><div class="summary-bar-row__track"><div class="summary-bar-row__fill" style="width:${amount/maxCat*100}%"></div></div><div class="summary-bar-row__value">${formatMoney(amount)}</div></div>`).join('') || compactEmptyHtml('receipt','経費の記録はありません。')}</div></div>
     </div>
     <form id="expenseForm" class="expense-form">
       <div class="field" style="margin-bottom:0;">
@@ -1086,7 +1117,7 @@ function expensesHtml(year) {
       </div>
       <div class="field" style="margin-bottom:0;">
         <label class="field__label">金額（円）</label>
-        <input class="input" type="number" min="0" id="ef-amount" value="${editing ? escapeHtml(editing.amount) : ''}" required placeholder="例: 3000">
+        <input class="input" type="text" inputmode="numeric" data-money-input id="ef-amount" value="${editing ? escapeHtml(editing.amount) : ''}" required placeholder="例: 3,000">
       </div>
       <div class="field" style="margin-bottom:0;">
         <label class="field__label">メモ</label>
@@ -1106,15 +1137,13 @@ function expensesHtml(year) {
       ${categories.map((c) => `<button type="button" class="chip ${expenseCategoryFilter === c ? 'is-active' : ''}" data-action="filter-expense-category" data-category="${escapeHtml(c)}">${c === '__all__' ? 'すべて' : escapeHtml(c)}</button>`).join('')}
     </div>
 
-    ${sorted.length === 0 ? `<p class="field__hint">経費の記録がありません。</p>` : `
+    ${sorted.length === 0 ? compactEmptyHtml('receipt','経費の記録がありません。') : `
     <div class="table-wrap"><table class="data-table">
-      <thead><tr><th>日付</th><th>カテゴリ</th><th class="num-cell">金額</th><th>メモ</th><th>領収書</th><th></th></tr></thead>
+      <thead><tr><th>経費</th><th class="num-cell">金額</th><th>領収書</th><th></th></tr></thead>
       <tbody>
       ${sorted.map((e) => `<tr>
-        <td>${formatJPSlash(e.date)}</td>
-        <td>${escapeHtml(e.category)}${e.autoProjectId ? '<span class="badge badge--auto">自動</span>' : ''}${e.autoRecurringId ? '<span class="badge badge--recurring">定期</span>' : ''}</td>
+        <td><strong class="expense-name">${escapeHtml((e.memo||'').trim() || e.category)}</strong><small class="expense-meta">${formatJPSlash(e.date)} ・ ${escapeHtml(e.category)}</small>${e.autoProjectId ? '<span class="badge badge--auto">自動</span>' : ''}${e.autoRecurringId ? '<span class="badge badge--recurring">定期</span>' : ''}</td>
         <td class="num-cell">${formatMoney(e.amount)}</td>
-        <td>${escapeHtml(e.memo || '')}</td>
         <td>${e.receiptImageId ? `<img class="receipt-thumb" data-image-id="${e.receiptImageId}" data-action="view-image" data-image-view-id="${e.receiptImageId}" alt="領収書">` : ''}</td>
         <td>${e.autoProjectId ? '<span class="auto-expense-note">案件側で自動管理されています</span>' : e.autoRecurringId ? `<div class="row-actions recurring-expense-actions"><button type="button" class="btn btn--sm" data-action="edit-expense" data-expense-id="${e.id}">この月を編集</button><span class="auto-expense-note">定期経費から自動生成</span></div>` : `<div class="row-actions"><button type="button" class="btn btn--sm" data-action="edit-expense" data-expense-id="${e.id}">編集</button><button type="button" class="icon-btn btn--sm" data-action="delete-expense" data-expense-id="${e.id}">${ICONS.trash}</button></div>`}</td>
       </tr>`).join('')}
@@ -1128,6 +1157,7 @@ function wireExpenseForm(root) {
   const catSel = $('#ef-category', root);
   if (!catSel) return;
   const catCustom = $('#ef-category-custom', root);
+  wireMoneyInputs(root);
   catSel.addEventListener('change', () => {
     catCustom.style.display = catSel.value === '__custom__' ? '' : 'none';
   });
@@ -1135,7 +1165,7 @@ function wireExpenseForm(root) {
     e.preventDefault();
     const date = $('#ef-date', root).value;
     const category = catSel.value === '__custom__' ? catCustom.value.trim() : catSel.value;
-    const amount = Number($('#ef-amount', root).value);
+    const amount = parseMoneyInput($('#ef-amount', root).value);
     const memo = $('#ef-memo', root).value.trim();
     const fileInput = $('#ef-receipt', root);
     if (!date) { showToast('日付を入力してください', 'error'); return; }
@@ -1194,7 +1224,7 @@ function summaryHtml(year) {
     <div class="summary-tile"><div class="summary-tile__label">差引所得（売上 − 経費）</div><div class="summary-tile__value">${formatMoney(diff)}</div></div>
   </div>
   <p class="tax-note">源泉徴収された金額は、確定申告で戻ってくる可能性があります。</p>
-  <h2 class="section-title">月別 売上・経費</h2>
+  <h2 class="section-title money-section-title">${ICONS.chart}<span>月別 売上・経費</span></h2>
   <div class="table-wrap"><table class="data-table">
     <thead><tr><th>月</th><th class="num-cell">売上</th><th class="num-cell">経費</th></tr></thead>
     <tbody>
@@ -1203,12 +1233,13 @@ function summaryHtml(year) {
   </table></div>
   <div class="view-toolbar__actions tax-export-actions"><button type="button" class="btn btn--sm" data-action="export-ledger-csv" data-year="${year}">売上をCSV出力</button><button type="button" class="btn btn--sm" data-action="export-expenses-csv" data-year="${year}">経費をCSV出力</button></div>
   <section class="tax-guide">
-    <h2 class="section-title">確定申告ガイド</h2>
+    <h2 class="section-title money-section-title">${ICONS.listCheck}<span>確定申告ガイド</span></h2>
     <details class="guide-accordion"><summary>確定申告のきほんの流れ</summary><div><ol><li>日々の帳簿づけ。このアプリの売上・経費記録がそのまま使えます。</li><li>1〜3月に前年分の書類を作成します。</li><li>原則3月15日までに提出・納税します。</li></ol><p><strong>売上は入金日ではなく納品日で計上</strong>します（発生主義）。</p></div></details>
     <details class="guide-accordion" id="expenseGuide"><summary>何が経費になる？</summary><div><ul><li>画材・印刷用紙など：消耗品費</li><li>制作ソフト・クラウドサービス・サブスク：通信費または消耗品費</li><li>書籍・ポーズ資料：資料・書籍費</li><li>パソコン・液晶タブレット・カメラなどの機材：消耗品費（高額品は減価償却の場合あり）</li><li>取材やクライアントとの打ち合わせ費：取材費・交際費</li><li>インターネット・スマートフォン：通信費</li><li>外注やアシスタントへの支払い：外注費</li><li>移動交通費：旅費交通費</li></ul><h3>家事按分</h3><p>自宅で仕事をしている場合、家賃・電気代・通信費は「仕事で使っている割合」だけ経費にできます。たとえば家賃10万円で、自宅の1/4を仕事部屋として使う場合は、月2.5万円を経費として計上します。</p></div></details>
     <details class="guide-accordion"><summary>注意すること</summary><div><ul><li>源泉徴収された分は、申告で還付される場合があります。</li><li>青色申告は最大65万円の控除があります。事前に開業届と青色申告承認申請書の提出が必要です。</li><li>領収書や帳簿は原則7年間保存しましょう。</li></ul></div></details>
+    <button type="button" class="btn expense-guide-back" data-action="back-to-expenses">‹ 経費に戻る</button>
   </section>
-  <section class="official-links"><h2 class="section-title">公式リンク集</h2><a href="https://www.nta.go.jp/taxes/shiraberu/shinkoku/tokushu/index.htm" target="_blank" rel="noopener">国税庁 確定申告特集 <span aria-hidden="true">↗</span></a><a href="https://www.keisan.nta.go.jp/" target="_blank" rel="noopener">確定申告書等作成コーナー（e-Tax） <span aria-hidden="true">↗</span></a><a href="https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/2210.htm" target="_blank" rel="noopener">タックスアンサー No.2210 やさしい必要経費の知識 <span aria-hidden="true">↗</span></a></section>
+  <section class="official-links"><h2 class="section-title money-section-title">${ICONS.sectionFolder}<span>公式リンク集</span></h2><a href="https://www.nta.go.jp/taxes/shiraberu/shinkoku/tokushu/index.htm" target="_blank" rel="noopener">国税庁 確定申告特集 <span aria-hidden="true">↗</span></a><a href="https://www.keisan.nta.go.jp/" target="_blank" rel="noopener">確定申告書等作成コーナー（e-Tax） <span aria-hidden="true">↗</span></a><a href="https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/2210.htm" target="_blank" rel="noopener">タックスアンサー No.2210 やさしい必要経費の知識 <span aria-hidden="true">↗</span></a></section>
   <p class="tax-disclaimer">本アプリの情報は一般的な参考情報です。個別の税務判断は税務署や税理士にご確認ください。</p>
   `;
 }
@@ -1219,10 +1250,10 @@ const UNIT_OPTIONS=['式','点','件','枚','体','カット','ページ','時�
 function unitDatalistHtml(){return `<datalist id="unit-options">${UNIT_OPTIONS.map((unit)=>`<option value="${unit}"></option>`).join('')}</datalist>`;}
 function quotesListHtml(year) {
   const quotes=state.quotes.filter((q)=>q.issueDate&&parseDateStr(q.issueDate).getFullYear()===year).sort((a,b)=>diffDays(b.issueDate,a.issueDate));
-  return `<div class="invoice-toolbar"><button type="button" class="text-link" data-action="open-price-list-settings">単価表を編集</button><button type="button" class="btn btn--primary" data-action="new-quote">${ICONS.plus}新規作成</button></div>${quotes.length?`<div class="invoice-grid quote-grid">${quotes.map((q)=>`<article class="invoice-card" data-action="open-quote" data-quote-id="${escapeHtml(q.id)}"><div class="invoice-miniature"><div class="invoice-miniature__page">${quotePreviewInnerHtml(q)}</div></div><div class="invoice-card__info"><div class="invoice-card__line"><strong>${escapeHtml(q.number)}</strong><span class="badge quote-status--${q.status}">${QUOTE_STATUS_LABEL[q.status]||'下書き'}</span></div><div>${escapeHtml(q.clientName)}${escapeHtml(q.honorific||'')}</div><div class="invoice-card__line"><strong>${formatMoney(quoteTotal(q))}</strong><button type="button" class="icon-btn btn--sm" data-action="delete-quote" data-quote-id="${escapeHtml(q.id)}">${ICONS.trash}</button></div></div></article>`).join('')}</div>`:'<p class="field__hint">この年の見積書はまだありません。</p>'}`;
+  return `<div class="invoice-toolbar"><button type="button" class="text-link" data-action="open-price-list-settings">単価表を編集</button><button type="button" class="btn btn--primary" data-action="new-quote">${ICONS.plus}新規作成</button></div>${quotes.length?`<div class="invoice-grid quote-grid">${quotes.map((q)=>`<article class="invoice-card" data-action="open-quote" data-quote-id="${escapeHtml(q.id)}"><div class="invoice-miniature"><div class="invoice-miniature__page">${quotePreviewInnerHtml(q)}</div></div><div class="invoice-card__info"><div class="invoice-card__line"><strong>${escapeHtml(q.number)}</strong><span class="badge quote-status--${q.status}">${QUOTE_STATUS_LABEL[q.status]||'下書き'}</span></div><div>${escapeHtml(q.clientName)}${escapeHtml(q.honorific||'')}</div><div class="invoice-card__line"><strong>${formatMoney(quoteTotal(q))}</strong><button type="button" class="icon-btn btn--sm" data-action="delete-quote" data-quote-id="${escapeHtml(q.id)}">${ICONS.trash}</button></div></div></article>`).join('')}</div>`:compactEmptyHtml('invoice','この年の見積書はまだありません。')}`;
 }
 function newQuoteDraft() { const year=new Date().getFullYear();return {id:uuid(),number:nextQuoteNumber(year),issueDate:todayStr(),validUntil:addDays(todayStr(),14),clientId:'',clientName:'',honorific:'御中',subject:'',items:[],rushEnabled:false,rushRate:(state.settings.priceList.find((p)=>p.type==='rate')||{rate:.3}).rate||.3,taxRate:0,notes:'本見積の有効期限は発行日より14日間です。',status:'draft',issuerSnapshot:null,createdAt:new Date().toISOString()}; }
-function quoteItemRowHtml(item,idx) { return `<div class="invoice-item-row quote-item-row" data-idx="${idx}"><label class="invoice-item-field invoice-item-field--name"><span>品目</span><input class="input input--name" data-field="name" value="${escapeHtml(item.name)}" placeholder="品目"></label><label class="invoice-item-field invoice-item-field--qty"><span>数量</span><input class="input input--qty" type="number" min="1" data-field="qty" value="${Number(item.qty)||1}"></label><label class="invoice-item-field invoice-item-field--unit"><span>単位</span><input class="input input--unit" list="unit-options" data-field="unit" value="${escapeHtml(item.unit||'式')}"></label><label class="invoice-item-field invoice-item-field--price"><span>単価</span><span class="currency-input"><i>¥</i><input class="input input--price" type="number" min="0" data-field="unitPrice" value="${Number(item.unitPrice)||0}"></span></label><div class="invoice-item-row__amount"><span>金額</span><strong>${formatMoney((Number(item.qty)||0)*(Number(item.unitPrice)||0))}</strong></div><button type="button" class="icon-btn btn--sm invoice-item-remove" data-action="remove-quote-item" data-idx="${idx}">${ICONS.trash}</button></div>`; }
+function quoteItemRowHtml(item,idx) { return `<div class="invoice-item-row quote-item-row" data-idx="${idx}"><label class="invoice-item-field invoice-item-field--name"><span>品目</span><input class="input input--name" data-field="name" value="${escapeHtml(item.name)}" placeholder="品目"></label><label class="invoice-item-field invoice-item-field--qty"><span>数量</span><input class="input input--qty" type="number" min="1" data-field="qty" value="${Number(item.qty)||1}"></label><label class="invoice-item-field invoice-item-field--unit"><span>単位</span><input class="input input--unit" list="unit-options" data-field="unit" value="${escapeHtml(item.unit||'式')}"></label><label class="invoice-item-field invoice-item-field--price"><span>単価</span><span class="currency-input"><i>¥</i><input class="input input--price" type="text" inputmode="numeric" data-money-input data-field="unitPrice" value="${Number(item.unitPrice)||0}"></span></label><div class="invoice-item-row__amount"><span>金額</span><strong>${formatMoney((Number(item.qty)||0)*(Number(item.unitPrice)||0))}</strong></div><button type="button" class="icon-btn btn--sm invoice-item-remove" data-action="remove-quote-item" data-idx="${idx}">${ICONS.trash}</button></div>`; }
 function quoteFormHtml(q) {
   const categories=Array.from(new Set(state.settings.priceList.filter((p)=>p.type!=='rate').map((p)=>p.category)));
   const clientOptions=state.clients.map((c)=>`<option value="${escapeHtml(c.id)}" ${q.clientId===c.id?'selected':''}>${escapeHtml(c.name)}</option>`).join('');
@@ -1231,7 +1262,7 @@ function quoteFormHtml(q) {
 function openQuoteFormModal(id) { const original=id?state.quotes.find((q)=>q.id===id):newQuoteDraft();if(!original)return;const isNew=!id;const overlay=openModal(quoteFormHtml(original),{wide:true});overlay.insertAdjacentHTML('beforeend',unitDatalistHtml());wireQuoteForm(overlay,original,isNew); }
 function wireQuoteForm(overlay,original,isNew) {
   const q=JSON.parse(JSON.stringify(original));
-  const renderItems=()=>{const box=$('#qf-items',overlay);box.innerHTML=q.items.map(quoteItemRowHtml).join('');$all('.quote-item-row',box).forEach((row)=>{$all('[data-field]',row).forEach((input)=>input.addEventListener('input',()=>{const field=input.dataset.field;const item=q.items[Number(row.dataset.idx)];item[field]=field==='name'||field==='unit'?input.value:Number(input.value);$('.invoice-item-row__amount strong',row).textContent=formatMoney((Number(item.qty)||0)*(Number(item.unitPrice)||0));updateTotal();}));});};
+  const renderItems=()=>{const box=$('#qf-items',overlay);box.innerHTML=q.items.map(quoteItemRowHtml).join('');wireMoneyInputs(box);$all('.quote-item-row',box).forEach((row)=>{$all('[data-field]',row).forEach((input)=>input.addEventListener('input',()=>{const field=input.dataset.field;const item=q.items[Number(row.dataset.idx)];item[field]=field==='name'||field==='unit'?input.value:field==='unitPrice'?parseMoneyInput(input.value):Number(input.value);$('.invoice-item-row__amount strong',row).textContent=formatMoney((Number(item.qty)||0)*(Number(item.unitPrice)||0));updateTotal();}));});};
   const updateTotal=()=>{$('#qf-total',overlay).innerHTML=`<span>小計 ${formatMoney(quoteSubtotal(q))}</span><span>特急 ${formatMoney(quoteRush(q))}</span><span>消費税 ${formatMoney(quoteTax(q))}</span><strong>合計 ${formatMoney(quoteTotal(q))}</strong>`;};
   $('#qf-client',overlay).addEventListener('change',(e)=>{if(e.target.value&&e.target.value!=='__new__'){const c=getClientById(e.target.value);q.clientId=c.id;q.clientName=c.name;$('#qf-client-name',overlay).value=c.name;}else q.clientId='';});
   [['qf-number','number'],['qf-issue','issueDate'],['qf-valid','validUntil'],['qf-client-name','clientName'],['qf-honorific','honorific'],['qf-subject','subject'],['qf-notes','notes']].forEach(([id,key])=>$('#'+id,overlay).addEventListener('input',(e)=>q[key]=e.target.value));
@@ -1244,9 +1275,9 @@ function quotePreviewInnerHtml(q) {
   const issuer=issuerForDocument(q); const rush=quoteRush(q); const total=quoteTotal(q);
   return `<div class="invoice-preview quote-preview"><div class="invoice-preview__title">お見積書</div><div class="invoice-preview__meta">見積番号: ${escapeHtml(q.number)}　発行日: ${formatJPSlash(q.issueDate)}</div><div class="invoice-preview__top"><div class="invoice-preview__to">${escapeHtml(q.clientName)} ${escapeHtml(q.honorific||'')}</div><div class="invoice-preview__issuer">${escapeHtml(issuer.name||'')}<br>${escapeHtml(issuer.address||'')}<br>${issuer.tel?'TEL: '+escapeHtml(issuer.tel)+'<br>':''}${issuer.email?escapeHtml(issuer.email):''}</div></div><div class="invoice-preview__subject">件名: ${escapeHtml(q.subject||'')}　有効期限: ${formatJPSlash(q.validUntil)}</div><div class="invoice-preview__total-box"><span class="invoice-preview__total-label">お見積金額（税込）</span><span class="invoice-preview__total-value">${formatMoney(total)}</span></div><table class="invoice-table"><thead><tr><th>品目</th><th style="width:60px">数量</th><th style="width:65px">単位</th><th style="width:105px">単価</th><th style="width:115px">金額</th></tr></thead><tbody>${q.items.map((it)=>`<tr><td>${escapeHtml(it.name)}</td><td class="num">${Number(it.qty)||0}</td><td>${escapeHtml(it.unit||'式')}</td><td class="num">${formatMoney(it.unitPrice)}</td><td class="num">${formatMoney((Number(it.qty)||0)*(Number(it.unitPrice)||0))}</td></tr>`).join('')}${rush?`<tr><td>特急対応（+${Math.round(q.rushRate*100)}%）</td><td class="num">1</td><td>式</td><td class="num">${formatMoney(rush)}</td><td class="num">${formatMoney(rush)}</td></tr>`:''}</tbody></table><div class="invoice-preview__totals"><div class="invoice-preview__totals-row"><span>小計</span><span>${formatMoney(quoteSubtotal(q))}</span></div>${rush?`<div class="invoice-preview__totals-row"><span>特急対応</span><span>${formatMoney(rush)}</span></div>`:''}<div class="invoice-preview__totals-row"><span>消費税${q.taxRate?'（10%）':''}</span><span>${formatMoney(quoteTax(q))}</span></div><div class="invoice-preview__totals-row grand"><span>合計</span><span>${formatMoney(total)}</span></div></div><div class="invoice-preview__bottom"><div class="invoice-preview__notes"><h4>備考</h4>${escapeHtml(q.notes||'本見積の有効期限は発行日より14日間です。').replace(/\n/g,'<br>')}</div></div></div>`;
 }
-function openQuotePreviewModal(id) { const q=state.quotes.find((x)=>x.id===id);if(!q)return;const safeId=escapeHtml(q.id);const overlay=openModal(`<div class="modal__header"><h2 class="modal__title">見積書プレビュー</h2><button type="button" class="icon-btn" data-action="close-modal">${ICONS.close}</button></div><div class="modal__body"><div class="invoice-toolbar"><div><button type="button" class="btn btn--sm" data-action="edit-quote" data-quote-id="${safeId}">編集</button><button type="button" class="btn btn--sm" data-action="print-invoice">印刷 / PDF保存</button><button type="button" class="btn btn--sm" data-action="save-quote-jpg" data-quote-id="${safeId}">JPGで保存</button><button type="button" class="btn btn--sm" data-action="export-quote-csv" data-quote-id="${safeId}">CSV</button><button type="button" class="btn btn--sm" data-action="convert-quote-invoice" data-quote-id="${safeId}">この見積から請求書を作成</button><select class="select quote-status-select" data-quote-id="${safeId}">${Object.entries(QUOTE_STATUS_LABEL).map(([value,label])=>`<option value="${value}" ${q.status===value?'selected':''}>${label}</option>`).join('')}</select></div></div><div class="invoice-preview-wrap a4-fit-preview">${quotePreviewInnerHtml(q)}</div></div>`,{wide:true});$('.quote-status-select',overlay).addEventListener('change',(e)=>{q.status=e.target.value;ensureQuoteIssuerSnapshot(q);saveState();renderMoneyTab();openQuotePreviewModal(q.id);});requestAnimationFrame(()=>fitA4Preview(overlay)); }
+function openQuotePreviewModal(id) { const q=state.quotes.find((x)=>x.id===id);if(!q)return;const safeId=escapeHtml(q.id);const overlay=openModal(`<div class="modal__header"><h2 class="modal__title">見積書プレビュー</h2><button type="button" class="icon-btn" data-action="close-modal">${ICONS.close}</button></div><div class="modal__body"><div class="invoice-toolbar"><div><button type="button" class="btn btn--sm" data-action="edit-quote" data-quote-id="${safeId}">編集</button><button type="button" class="btn btn--sm" data-action="print-invoice">印刷 / PDF保存</button><button type="button" class="btn btn--sm" data-action="save-quote-jpg" data-quote-id="${safeId}">JPGで保存</button>${canShareFiles()?`<button type="button" class="btn btn--sm" data-action="share-quote-jpg" data-quote-id="${safeId}">共有</button>`:''}<button type="button" class="btn btn--sm" data-action="export-quote-csv" data-quote-id="${safeId}">CSV</button><button type="button" class="btn btn--sm" data-action="convert-quote-invoice" data-quote-id="${safeId}">この見積から請求書を作成</button><select class="select quote-status-select" data-quote-id="${safeId}">${Object.entries(QUOTE_STATUS_LABEL).map(([value,label])=>`<option value="${value}" ${q.status===value?'selected':''}>${label}</option>`).join('')}</select></div></div><div class="invoice-preview-wrap a4-fit-preview">${quotePreviewInnerHtml(q)}</div></div>`,{wide:true});$('.quote-status-select',overlay).addEventListener('change',(e)=>{q.status=e.target.value;ensureQuoteIssuerSnapshot(q);saveState();renderMoneyTab();openQuotePreviewModal(q.id);});requestAnimationFrame(()=>fitA4Preview(overlay)); }
 function deleteQuote(id){if(!confirm('この見積書を削除します。よろしいですか？'))return;state.quotes=state.quotes.filter((q)=>q.id!==id);saveState();closeModal();renderMoneyTab();}
-function saveQuoteAsJpg(id){
+function saveQuoteAsJpg(id,share){
   const q=state.quotes.find((x)=>x.id===id);if(!q)return;const W=1240,H=1754,margin=90;
   const canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;const c=canvas.getContext('2d');
   c.fillStyle='#fff';c.fillRect(0,0,W,H);c.fillStyle='#222';c.textAlign='center';c.font='700 42px sans-serif';c.fillText('お見積書',W/2,110);
@@ -1259,7 +1290,7 @@ function saveQuoteAsJpg(id){
   if(q.rushEnabled)rows.push({name:`特急対応（+${Math.round(q.rushRate*100)}%）`,qty:1,unit:'式',price:quoteRush(q),amount:quoteRush(q)});
   rows.forEach((it)=>{line(y,34);c.textAlign='left';c.fillText(String(it.name||''),columns[0]+10,y+22);c.textAlign='right';c.fillText(String(it.qty||0),columns[2]-10,y+22);c.textAlign='left';c.fillText(String(it.unit||'式'),columns[2]+10,y+22);c.textAlign='right';c.fillText(formatMoney(it.price),columns[4]-10,y+22);c.fillText(formatMoney(it.amount),columns[5]-10,y+22);y+=34;});
   y+=35;c.strokeStyle='#222';c.strokeRect(760,y-25,W-margin-760,55);c.font='700 18px sans-serif';c.textAlign='left';c.fillText('合計',780,y+10);c.textAlign='right';c.fillText(formatMoney(quoteTotal(q)),W-margin-15,y+10);y+=80;c.textAlign='left';c.font='14px sans-serif';wrapText(c,q.notes||'',margin,y,950,22);
-  const a=document.createElement('a');a.href=canvas.toDataURL('image/jpeg',.92);a.download=`見積書_${q.number}.jpg`;document.body.appendChild(a);a.click();a.remove();
+  outputJpgCanvas(canvas,`見積書_${q.number}.jpg`,share);
 }
 
 function exportDocumentItemsCsv(kind,id){
@@ -1277,7 +1308,7 @@ function invoicesListHtml(year) {
       <div></div>
       <button type="button" class="btn btn--primary" data-action="new-invoice">${ICONS.plus}新規作成</button>
     </div>
-    ${invoices.length === 0 ? `<p class="field__hint">この年の請求書はまだありません。</p>` : `
+    ${invoices.length === 0 ? compactEmptyHtml('invoice','この年の請求書はまだありません。') : `
     <div class="invoice-grid">${invoices.map((iv) => `<article class="invoice-card" data-action="open-invoice" data-invoice-id="${iv.id}" tabindex="0" role="button"><div class="invoice-miniature"><div class="invoice-miniature__page">${invoicePreviewInnerHtml(iv)}</div></div><div class="invoice-card__info"><div class="invoice-card__line"><strong>${escapeHtml(iv.number)}</strong><span class="badge badge--${iv.status === 'paid' ? 'paid' : 'billed'}">${iv.status === 'paid' ? '入金済み' : '発行済み'}</span></div><div>${escapeHtml(iv.clientName)}${escapeHtml(iv.honorific || '')}</div><div class="invoice-card__line"><strong>${formatMoney(invoiceTotal(iv))}</strong><button type="button" class="icon-btn btn--sm" data-action="delete-invoice" data-invoice-id="${iv.id}" aria-label="削除">${ICONS.trash}</button></div></div></article>`).join('')}</div>`}
   `;
 }
@@ -1386,7 +1417,7 @@ function invoiceItemRowHtml(it, idx) {
     <label class="invoice-item-field invoice-item-field--name"><span>品目</span><input class="input input--name" placeholder="品目" value="${escapeHtml(it.name)}" data-field="name"></label>
     <label class="invoice-item-field invoice-item-field--qty"><span>数量</span><input class="input input--qty" type="number" min="0" value="${it.qty}" data-field="qty"></label>
     <label class="invoice-item-field invoice-item-field--unit"><span>単位</span><input class="input input--unit" list="unit-options" value="${escapeHtml(it.unit||'式')}" data-field="unit"></label>
-    <label class="invoice-item-field invoice-item-field--price"><span>単価</span><span class="currency-input"><i>¥</i><input class="input input--price" type="number" min="0" value="${it.unitPrice}" data-field="unitPrice"></span></label>
+    <label class="invoice-item-field invoice-item-field--price"><span>単価</span><span class="currency-input"><i>¥</i><input class="input input--price" type="text" inputmode="numeric" data-money-input value="${it.unitPrice}" data-field="unitPrice"></span></label>
     <div class="invoice-item-row__amount"><span>金額</span><strong>${formatMoney(amount)}</strong></div>
     <button type="button" class="icon-btn btn--sm invoice-item-remove" data-action="remove-invoice-item" data-idx="${idx}">${ICONS.trash}</button>
   </div>`;
@@ -1405,12 +1436,13 @@ function wireInvoiceForm(overlay, invoiceOriginal, isNew) {
   }
 
   function bindItemRows() {
+    wireMoneyInputs(overlay);
     $all('.invoice-item-row', overlay).forEach((row) => {
       const idx = Number(row.dataset.idx);
       $all('input[data-field]', row).forEach((inp) => {
         inp.addEventListener('input', () => {
           const field = inp.dataset.field;
-          draft.items[idx][field] = field === 'name' || field === 'unit' ? inp.value : Number(inp.value);
+          draft.items[idx][field] = field === 'name' || field === 'unit' ? inp.value : field === 'unitPrice' ? parseMoneyInput(inp.value) : Number(inp.value);
           row.querySelector('.invoice-item-row__amount strong').textContent = formatMoney((Number(draft.items[idx].qty) || 0) * (Number(draft.items[idx].unitPrice) || 0));
           updateTotalsPreview();
         });
@@ -1503,6 +1535,7 @@ function invoicePreviewModalHtml(inv) {
         <button type="button" class="btn btn--sm" data-action="edit-invoice" data-invoice-id="${inv.id}">編集</button>
         <button type="button" class="btn btn--sm" data-action="print-invoice">印刷 / PDF保存</button>
         <button type="button" class="btn btn--sm" data-action="save-invoice-jpg" data-invoice-id="${inv.id}">JPGで保存</button>
+        ${canShareFiles()?`<button type="button" class="btn btn--sm" data-action="share-invoice-jpg" data-invoice-id="${inv.id}">共有</button>`:''}
         <button type="button" class="btn btn--sm" data-action="export-invoice-csv" data-invoice-id="${inv.id}">CSV</button>
         ${inv.status !== 'paid' ? `<button type="button" class="btn btn--sm" data-action="mark-invoice-paid" data-invoice-id="${inv.id}">入金済みにする</button>` : `<span class="badge badge--paid">入金済み</span>`}
         <button type="button" class="btn btn--sm btn--danger" data-action="delete-invoice" data-invoice-id="${inv.id}">削除</button>
@@ -1609,7 +1642,7 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
   });
 }
 
-function saveInvoiceAsJpg(invoiceId) {
+function saveInvoiceAsJpg(invoiceId, share) {
   const inv = state.invoices.find((iv) => iv.id === invoiceId);
   if (!inv) return;
   const issuer = issuerForDocument(inv);
@@ -1716,13 +1749,7 @@ function saveInvoiceAsJpg(invoiceId) {
   ctx.font = '13px sans-serif';
   wrapText(ctx, inv.notes || '—', marginX + 420, y + 24, 460, 20);
 
-  const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-  const a = document.createElement('a');
-  a.href = dataUrl;
-  a.download = `請求書_${inv.number}.jpg`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  outputJpgCanvas(canvas, `請求書_${inv.number}.jpg`, share);
 }
 
 /* ===================== 作品タブ ===================== */
@@ -1847,13 +1874,14 @@ function openAddGalleryItemModal() {
       <div class="field"><label class="field__label">クライアント</label><input class="input" id="gi-client"></div>
       <div class="field"><label class="field__label">受注日</label><input class="input" type="date" id="gi-ordered-date" value="${todayStr()}"></div>
       <div class="field"><label class="field__label">納品日</label><input class="input" type="date" id="gi-date" value="${todayStr()}"></div>
-      <div class="field"><label class="field__label">金額（円）</label><input class="input" type="number" min="0" id="gi-fee"></div>
+      <div class="field"><label class="field__label">金額（円）</label><input class="input" type="text" inputmode="numeric" data-money-input id="gi-fee"></div>
     </div>
     <div class="modal__footer">
       <button type="button" class="btn" data-action="close-modal">キャンセル</button>
       <button class="btn btn--primary" id="gi-save" type="button">追加する</button>
     </div>
   `);
+  wireMoneyInputs(overlay);
   $('#gi-save', overlay).addEventListener('click', async () => {
     const file = $('#gi-file', overlay).files[0];
     if (!file) { showToast('画像を選択してください', 'error'); return; }
@@ -1865,7 +1893,7 @@ function openAddGalleryItemModal() {
       clientName: $('#gi-client', overlay).value.trim(),
       orderedDate: $('#gi-ordered-date', overlay).value || null,
       deliveredDate: $('#gi-date', overlay).value || null,
-      fee: Number($('#gi-fee', overlay).value) || 0,
+      fee: parseMoneyInput($('#gi-fee', overlay).value) || 0,
       createdAt: new Date().toISOString(),
     });
     saveState();
@@ -1882,14 +1910,20 @@ function deleteGalleryExtra(extraId) {
 }
 
 /* ===================== 設定モーダル ===================== */
-let settingsTab = 'template';
+let settingsTab = null;
 let settingsSelectedClientId = '';
 let settingsReturnToProject = false;
 let settingsEditingRecurringId = null;
 
+const SETTINGS_DETAIL_TITLES = {
+  theme:'テーマカラー', issuer:'発行者情報', template:'工程テンプレート', clients:'クライアント管理',
+  priceList:'単価表', recurring:'定期経費', platformFee:'プラットフォーム',
+  backup:'バックアップと復元', usage:'使い方ツアー', about:'アプリについて',
+};
+
 function openSettingsModal(options) {
   options = options || {};
-  settingsTab = options.initialTab || 'template';
+  settingsTab = options.initialTab || null;
   settingsSelectedClientId = '';
   settingsEditingRecurringId = null;
   settingsReturnToProject = !!options.returnToProject;
@@ -1898,25 +1932,75 @@ function openSettingsModal(options) {
 }
 
 function settingsModalHtml() {
+  const isDetail=!!settingsTab;
   return `
-  <div class="modal__header">
-    <h2 class="modal__title">設定</h2>
+  <div class="modal__header settings-modal-header">
+    ${isDetail?'<button type="button" class="settings-back-link" data-action="settings-back">‹ 設定</button>':'<span class="settings-header-spacer"></span>'}
+    <h2 class="modal__title">${isDetail?escapeHtml(SETTINGS_DETAIL_TITLES[settingsTab]||'設定'):'設定'}</h2>
     <button type="button" class="icon-btn" data-action="close-modal">${ICONS.close}</button>
   </div>
-  <div class="modal__body settings-modal-body">
-    ${settingsReturnToProject ? `<button type="button" class="btn settings-return-btn" data-action="close-modal">← 案件入力に戻る</button>` : ''}
-    <div class="money-subtabs">
-      <button type="button" class="money-subtab-btn ${settingsTab === 'template' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="template">工程テンプレート</button>
-      <button type="button" class="money-subtab-btn ${settingsTab === 'clients' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="clients">クライアント管理</button>
-      <button type="button" class="money-subtab-btn ${settingsTab === 'issuer' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="issuer">発行者情報</button>
-      <button type="button" class="money-subtab-btn ${settingsTab === 'recurring' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="recurring">定期経費</button>
-      <button type="button" class="money-subtab-btn ${settingsTab === 'backup' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="backup">バックアップ</button>
-      <button type="button" class="money-subtab-btn ${settingsTab === 'theme' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="theme">テーマ</button>
-      <button type="button" class="money-subtab-btn ${settingsTab === 'priceList' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="priceList">単価表</button>
-      <button type="button" class="money-subtab-btn ${settingsTab === 'usage' ? 'is-active' : ''}" data-action="switch-settings-tab" data-subtab="usage">使い方</button>
-    </div>
-    <div id="settingsSubContent"></div>
+  <div class="modal__body settings-modal-body ${isDetail?'settings-detail-body':'settings-home-body'}">
+    ${!isDetail&&settingsReturnToProject?'<button type="button" class="settings-project-return" data-action="close-modal">‹ 案件入力に戻る</button>':''}
+    ${isDetail?'<div id="settingsSubContent" class="settings-detail-content"></div>':settingsHomeHtml()}
   </div>`;
+}
+
+function settingsIconSvg(name) {
+  const paths={
+    theme:'<path d="M12 3a9 9 0 1 0 0 18h1.4a1.7 1.7 0 0 0 0-3.4h-.7a1.5 1.5 0 0 1 0-3H15a6 6 0 0 0 0-12h-3Z"/><circle cx="7.5" cy="10" r="1"/><circle cx="10" cy="6.8" r="1"/><circle cx="15" cy="7" r="1"/>',
+    issuer:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20c.7-4 3-6 7-6s6.3 2 7 6"/>',
+    template:'<path d="M7 4h10M7 12h10M7 20h10"/><circle cx="4" cy="4" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="20" r="1"/>',
+    clients:'<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c.5-4 2.5-6 6-6s5.5 2 6 6M14 15c3.6-.7 6 1 7 4"/>',
+    priceList:'<path d="M4 7h16v12H4zM7 4h10v3M8 12h8M8 16h5"/>',
+    recurring:'<path d="M19 8a7 7 0 1 0 0 8M19 4v4h-4"/><path d="M12 8v4l3 2"/>',
+    platformFee:'<circle cx="8" cy="8" r="3"/><circle cx="16" cy="16" r="3"/><path d="m7 18 10-12"/>',
+    backup:'<path d="M5 17a4 4 0 0 1 1-7.9A6 6 0 0 1 17.5 8 4.5 4.5 0 0 1 18 17h-3M12 20V11m-3 3 3-3 3 3"/>',
+    usage:'<path d="M9.5 9a2.7 2.7 0 1 1 4.2 2.2c-1.2.8-1.7 1.4-1.7 2.8"/><circle cx="12" cy="18" r=".8"/><circle cx="12" cy="12" r="9"/>',
+    about:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><circle cx="12" cy="7.5" r=".8"/>',
+  };
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${paths[name]||paths.about}</svg>`;
+}
+
+function settingsRowHtml(key,label,valueHtml,valueClass) {
+  return `<button type="button" class="settings-list-row" data-action="open-settings-detail" data-setting="${key}"><span class="settings-row-icon">${settingsIconSvg(key)}</span><span class="settings-row-label">${escapeHtml(label)}</span>${valueHtml?`<span class="settings-row-value ${valueClass||''}">${valueHtml}</span>`:''}<span class="settings-row-chevron" aria-hidden="true">›</span></button>`;
+}
+
+function settingsGroupHtml(label,rows) {
+  return `<section class="settings-group"><h3>${escapeHtml(label)}</h3><div class="settings-group-card">${rows.join('')}</div></section>`;
+}
+
+function settingsHomeHtml() {
+  const issuerName=(state.settings.issuer&&state.settings.issuer.name||'').trim();
+  const backupDays=state.settings.lastBackupAt?Math.max(0,diffDays(todayStr(),state.settings.lastBackupAt)):null;
+  const platformCount=(state.settings.platforms||[]).length;
+  return `<div class="settings-home">
+    ${settingsGroupHtml('一般',[
+      settingsRowHtml('theme','テーマカラー',`<span class="settings-current-swatch" style="background:${escapeHtml(state.settings.accentColor||'#687EE7')}"></span>`),
+      settingsRowHtml('issuer','発行者情報',escapeHtml(issuerName||'未設定'),issuerName?'':'is-muted'),
+    ])}
+    ${settingsGroupHtml('制作',[
+      settingsRowHtml('template','工程テンプレート',`${state.settings.defaultTemplate.length}工程`),
+      settingsRowHtml('clients','クライアント管理',`${state.clients.length}社`),
+      settingsRowHtml('priceList','単価表',`${state.settings.priceList.length}項目`),
+    ])}
+    ${settingsGroupHtml('お金',[
+      settingsRowHtml('recurring','定期経費',`${state.recurringExpenses.length}件`),
+      settingsRowHtml('platformFee','プラットフォーム',`${platformCount}件`),
+    ])}
+    ${settingsGroupHtml('バックアップ',[
+      settingsRowHtml('backup','バックアップと復元',backupDays===null?'未実施':`最終: ${backupDays}日前`,backupDays===null?'is-warning':''),
+    ])}
+    ${settingsGroupHtml('ヘルプ',[
+      settingsRowHtml('usage','使い方ツアー',''),
+      settingsRowHtml('about','アプリについて','v1.0'),
+    ])}
+  </div>`;
+}
+
+function renderSettingsModal(overlay) {
+  const modal=$('.modal',overlay); if(!modal)return;
+  modal.innerHTML=settingsModalHtml();
+  wireSettingsModal(overlay);
 }
 
 function wireSettingsModal(overlay) {
@@ -1929,46 +2013,61 @@ function wireSettingsModal(overlay) {
   else if (settingsTab === 'backup') { sub.innerHTML = backupSettingsHtml(); wireBackupSettings(overlay); }
   else if (settingsTab === 'theme') { sub.innerHTML = themeSettingsHtml(); wireThemeSettings(overlay); }
   else if (settingsTab === 'priceList') { sub.innerHTML=priceListSettingsHtml();wirePriceListSettings(overlay); }
+  else if (settingsTab === 'platformFee') { sub.innerHTML=platformFeeSettingsHtml();wirePlatformFeeSettings(overlay); }
   else if (settingsTab === 'usage') sub.innerHTML = usageSettingsHtml();
+  else if (settingsTab === 'about') sub.innerHTML = aboutSettingsHtml();
 }
 
-const ACCENT_PRESETS = [['ペリウィンクル','#687EE7'],['ブルー','#2979FF'],['ミント','#2BB673'],['ピンク','#F06292'],['コーラル','#FF8A65'],['バイオレット','#9575CD'],['ネイビー','#182842']];
+const ACCENT_PRESETS = [['赤','#FF3B30'],['ピンク','#FF4D8D'],['ブルー','#2979FF'],['水色','#00B8D9'],['ミント','#00C48C'],['オレンジ','#FF8A00'],['イエロー','#FFC400'],['バイオレット','#7C4DFF']];
 function themeSettingsHtml() {
   const selected=normalizeHex(state.settings.accentColor)||'#687EE7';
-  return `<h3 class="section-title">テーマカラー</h3><p class="field__hint">ボタン、リンク、選択中の表示に使う色を選べます。状態を表す色は変わりません。</p><div class="theme-presets">${ACCENT_PRESETS.map(([name,color])=>`<button type="button" class="theme-preset ${selected===color?'is-selected':''}" data-action="set-accent-color" data-color="${color}"><span style="background:${color}"></span>${name}</button>`).join('')}<button type="button" class="theme-preset theme-custom" id="themeCustomPicker"><span style="background:${selected}"></span>自由な色</button></div><div class="theme-current"><span>現在のカラー</span><code>${selected}</code></div>`;
+  const appearance=state.settings.appearance||'system';
+  const isCustom=!ACCENT_PRESETS.some((item)=>item[1]===selected);
+  return `<h3 class="section-title">外観</h3><p class="field__hint">端末の設定に合わせるか、外観を固定できます。</p><div class="segmented appearance-segment" role="group" aria-label="外観">${[['light','ライト'],['dark','ダーク'],['system','システム']].map(([value,label])=>`<button type="button" class="segmented__btn ${appearance===value?'is-active':''}" data-action="set-appearance" data-appearance="${value}">${label}</button>`).join('')}</div><h3 class="section-title theme-color-heading">テーマカラー</h3><p class="field__hint">ボタン、リンク、選択中の表示に使う色を選べます。状態を表す色は変わりません。</p><div class="theme-presets">${ACCENT_PRESETS.map(([name,color])=>`<button type="button" class="theme-preset ${selected===color?'is-selected':''}" data-action="set-accent-color" data-color="${color}"><span style="background:${color}"></span>${name}</button>`).join('')}<button type="button" class="theme-preset theme-custom ${isCustom?'is-selected':''}" id="themeCustomPicker"><span class="custom-color-swatch" style="--current-color:${selected}"></span>カスタム</button></div><div class="theme-current"><span>現在のカラー</span><code>${selected}</code></div>`;
 }
 function wireThemeSettings(overlay) {
   const custom=$('#themeCustomPicker',overlay); if(!custom)return;
-  custom.addEventListener('click',()=>openColorPicker(custom,state.settings.accentColor,(color)=>{state.settings.accentColor=color;saveState();applyAccentTheme(color);const dot=$('span',custom);if(dot)dot.style.background=color;const code=$('.theme-current code',overlay);if(code)code.textContent=color;}));
+  custom.addEventListener('click',()=>openColorPicker(custom,state.settings.accentColor,(color)=>{state.settings.accentColor=color;saveState();applyAccentTheme(color);const preset=$(`.theme-preset[data-color="${color}"]`,overlay);$all('.theme-preset',overlay).forEach((item)=>item.classList.remove('is-selected'));(preset||custom).classList.add('is-selected');const dot=$('.custom-color-swatch',custom);if(dot)dot.style.setProperty('--current-color',color);const code=$('.theme-current code',overlay);if(code)code.textContent=color;}));
 }
 
 function recurringExpenseSettingsHtml() {
   const editing=state.recurringExpenses.find((item)=>item.id===settingsEditingRecurringId)||null;
-  return `<h3 class="section-title">定期経費（サブスク）</h3><p class="field__hint">開始月から毎月、自動で経費を作成します。過去に作成された月の経費は、定期経費を削除しても残ります。</p>
+  const frequency=editing&&editing.frequency==='yearly'?'yearly':'monthly';
+  return `<h3 class="section-title">定期経費（サブスク）</h3><p class="field__hint">開始月から毎月または毎年、自動で経費を作成します。過去に作成された経費は削除後も残ります。</p>
     <form id="recurringExpenseForm" class="recurring-expense-form">
       <div class="field"><label class="field__label">名前</label><input class="input" id="ref-name" value="${escapeHtml(editing&&editing.name||'')}" placeholder="例: クリップスタジオペイント／AIサブスク／スマホ通信費" required></div>
-      <div class="field"><label class="field__label">カテゴリ</label><select class="select" id="ref-category">${EXPENSE_CATEGORIES.map((category)=>`<option value="${escapeHtml(category)}" ${editing&&editing.category===category?'selected':''}>${escapeHtml(category)}</option>`).join('')}</select></div>
-      <div class="field"><label class="field__label">月額（円）</label><input class="input" id="ref-amount" type="number" min="0" value="${editing?Number(editing.amount)||0:''}" required></div>
-      <div class="field"><label class="field__label">毎月の日</label><input class="input" id="ref-day" type="number" min="1" max="31" value="${editing?Number(editing.dayOfMonth)||1:1}" required></div>
+      <div class="field"><label class="field__label">カテゴリ</label><select class="select" id="ref-category">${EXPENSE_CATEGORIES.map((category)=>`<option value="${escapeHtml(category)}" ${editing?editing.category===category:category==='ソフトウェア・サブスク'?'selected':''}>${escapeHtml(category)}</option>`).join('')}</select></div>
+      <div class="field"><label class="field__label">金額（円）</label><input class="input" id="ref-amount" type="text" inputmode="numeric" data-money-input value="${editing?Number(editing.amount)||0:''}" required></div>
+      <div class="field"><label class="field__label">周期</label><select class="select" id="ref-frequency"><option value="monthly" ${frequency==='monthly'?'selected':''}>毎月</option><option value="yearly" ${frequency==='yearly'?'selected':''}>毎年</option></select></div>
+      <div class="field" id="ref-month-field" ${frequency==='monthly'?'hidden':''}><label class="field__label">毎年の月</label><select class="select" id="ref-month">${Array.from({length:12},(_,i)=>`<option value="${i+1}" ${Number(editing&&editing.monthOfYear||1)===i+1?'selected':''}>${i+1}月</option>`).join('')}</select></div>
+      <div class="field"><label class="field__label" id="ref-day-label">${frequency==='yearly'?'毎年の日':'毎月の日'}</label><input class="input" id="ref-day" type="number" min="1" max="31" value="${editing?Number(editing.dayOfMonth)||1:1}" required></div>
       <div class="field"><label class="field__label">開始月</label><input class="input" id="ref-start" type="month" value="${escapeHtml(editing&&editing.startMonth||todayStr().slice(0,7))}" required></div>
       <div class="field"><label class="field__label">メモ</label><input class="input" id="ref-memo" value="${escapeHtml(editing&&editing.memo||'')}" placeholder="例: 制作ソフト月額プラン"></div>
       <label class="checkbox-row"><input type="checkbox" id="ref-active" ${!editing||editing.active?'checked':''}>自動計上を有効にする</label>
       <div class="recurring-expense-form__actions"><button type="submit" class="btn btn--primary">${editing?'更新する':'追加する'}</button>${editing?'<button type="button" class="btn" data-action="cancel-recurring-expense-edit">キャンセル</button>':''}</div>
     </form>
-    <div class="recurring-expense-list">${state.recurringExpenses.length?state.recurringExpenses.map((item)=>`<div class="recurring-expense-row ${item.active?'':'is-paused'}"><div><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.category)}・${formatMoney(item.amount)}・毎月${Number(item.dayOfMonth)||1}日・${escapeHtml(item.startMonth)}開始</span><small>${item.active?'自動計上中':'一時停止中'}</small></div><div><button type="button" class="btn btn--sm" data-action="toggle-recurring-expense" data-recurring-id="${item.id}">${item.active?'一時停止':'再開'}</button><button type="button" class="btn btn--sm" data-action="edit-recurring-expense" data-recurring-id="${item.id}">編集</button><button type="button" class="icon-btn btn--sm" data-action="delete-recurring-expense" data-recurring-id="${item.id}">${ICONS.trash}</button></div></div>`).join(''):'<p class="field__hint">定期経費はまだ登録されていません。</p>'}</div>`;
+    <div class="recurring-expense-list">${state.recurringExpenses.length?state.recurringExpenses.map((item)=>`<div class="recurring-expense-row ${item.active?'':'is-paused'}"><div><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.category)}・${formatMoney(item.amount)}・${item.frequency==='yearly'?`毎年${Number(item.monthOfYear)||1}月${Number(item.dayOfMonth)||1}日`:`毎月${Number(item.dayOfMonth)||1}日`}・${escapeHtml(item.startMonth)}開始</span><small>${item.active?'自動計上中':'一時停止中'}</small></div><div><button type="button" class="btn btn--sm" data-action="toggle-recurring-expense" data-recurring-id="${item.id}">${item.active?'一時停止':'再開'}</button><button type="button" class="btn btn--sm" data-action="edit-recurring-expense" data-recurring-id="${item.id}">編集</button><button type="button" class="icon-btn btn--sm" data-action="delete-recurring-expense" data-recurring-id="${item.id}">${ICONS.trash}</button></div></div>`).join(''):'<p class="field__hint">定期経費はまだ登録されていません。</p>'}</div>`;
 }
 
 function wireRecurringExpenseSettings(overlay) {
   const form=$('#recurringExpenseForm',overlay); if(!form)return;
-  form.addEventListener('submit',(event)=>{event.preventDefault();const name=$('#ref-name',overlay).value.trim();const amount=Number($('#ref-amount',overlay).value);const day=Math.max(1,Math.min(31,Number($('#ref-day',overlay).value)||1));const startMonth=$('#ref-start',overlay).value; if(!name||!Number.isFinite(amount)||amount<0||!/^\d{4}-\d{2}$/.test(startMonth)){showToast('定期経費の入力内容を確認してください','error');return;}const values={name,category:$('#ref-category',overlay).value,amount,dayOfMonth:day,memo:$('#ref-memo',overlay).value.trim(),startMonth,active:$('#ref-active',overlay).checked};const editing=state.recurringExpenses.find((item)=>item.id===settingsEditingRecurringId);if(editing)Object.assign(editing,values);else state.recurringExpenses.push(Object.assign({id:uuid()},values));settingsEditingRecurringId=null;generateRecurringExpensesThroughCurrentMonth();saveState();wireSettingsModal(overlay);renderCurrentTab();showToast(editing?'定期経費を更新しました':'定期経費を追加しました');});
+  wireMoneyInputs(overlay); const frequency=$('#ref-frequency',overlay); const syncFrequency=()=>{const yearly=frequency.value==='yearly';$('#ref-month-field',overlay).hidden=!yearly;$('#ref-day-label',overlay).textContent=yearly?'毎年の日':'毎月の日';};frequency.addEventListener('change',syncFrequency);syncFrequency();
+  form.addEventListener('submit',(event)=>{event.preventDefault();const name=$('#ref-name',overlay).value.trim();const amount=parseMoneyInput($('#ref-amount',overlay).value);const day=Math.max(1,Math.min(31,Number($('#ref-day',overlay).value)||1));const startMonth=$('#ref-start',overlay).value; if(!name||!Number.isFinite(amount)||amount<0||!/^\d{4}-\d{2}$/.test(startMonth)){showToast('定期経費の入力内容を確認してください','error');return;}const values={name,category:$('#ref-category',overlay).value,amount,frequency:frequency.value,monthOfYear:Number($('#ref-month',overlay).value)||1,dayOfMonth:day,memo:$('#ref-memo',overlay).value.trim(),startMonth,active:$('#ref-active',overlay).checked};const editing=state.recurringExpenses.find((item)=>item.id===settingsEditingRecurringId);if(editing)Object.assign(editing,values);else state.recurringExpenses.push(Object.assign({id:uuid()},values));settingsEditingRecurringId=null;generateRecurringExpensesThroughCurrentMonth();saveState();wireSettingsModal(overlay);renderCurrentTab();showToast(editing?'定期経費を更新しました':'定期経費を追加しました');});
 }
 
 function usageSettingsHtml() {
   return `<h3 class="section-title">使い方</h3><p class="field__hint">画面の主な機能をいつでも確認できます。</p><div class="settings-actions"><button type="button" class="btn btn--primary" data-action="restart-tour">使い方ツアーをもう一度見る</button></div>`;
 }
 
-function priceListSettingsHtml(){return `<h3 class="section-title">ココナラ手数料</h3><p class="field__hint">ココナラ経由の案件から自動計上する手数料率です。改定時に変更してください。</p><div class="field platform-rate-field"><label class="field__label" for="platformFeeRatePercent">手数料率（%）</label><input class="input" id="platformFeeRatePercent" type="number" min="0" max="100" step="0.01" value="${Number(state.settings.platformFeeRate)*100}"></div><h3 class="section-title" style="margin-top:28px">単価表</h3><p class="field__hint">見積作成時の選択肢です。金額やカテゴリはいつでも変更できます。</p><div class="price-list-editor" id="priceListEditor">${state.settings.priceList.map((item,idx)=>`<div class="price-list-row" data-idx="${idx}"><input class="input" data-field="category" value="${escapeHtml(item.category)}" aria-label="カテゴリ"><input class="input" data-field="name" value="${escapeHtml(item.name)}" aria-label="項目名"><select class="select" data-field="type"><option value="fixed" ${item.type!=='rate'?'selected':''}>金額</option><option value="rate" ${item.type==='rate'?'selected':''}>率（%）</option></select><input class="input" type="number" min="0" data-field="value" value="${item.type==='rate'?Math.round((item.rate||0)*100):Number(item.price)||0}" aria-label="金額または率"><button type="button" class="icon-btn" data-action="delete-price-item" data-idx="${idx}">${ICONS.trash}</button></div>`).join('')}</div><button type="button" class="btn btn--primary" data-action="add-price-item">${ICONS.plus}項目を追加</button>`;}
-function wirePriceListSettings(overlay){const rateInput=$('#platformFeeRatePercent',overlay);if(rateInput)rateInput.addEventListener('change',()=>{const percent=Number(rateInput.value);if(!Number.isFinite(percent)||percent<0||percent>100){showToast('手数料率は0〜100%で入力してください','error');rateInput.value=state.settings.platformFeeRate*100;return;}state.settings.platformFeeRate=percent/100;syncAllAutoProjectExpenses();saveState();renderCurrentTab();showToast('手数料率を保存しました');});const editor=$('#priceListEditor',overlay);$all('.price-list-row',editor).forEach((row)=>{$all('[data-field]',row).forEach((input)=>input.addEventListener('change',()=>{const item=state.settings.priceList[Number(row.dataset.idx)];const field=input.dataset.field;if(field==='value'){if(item.type==='rate')item.rate=(Number(input.value)||0)/100;else item.price=Number(input.value)||0;}else item[field]=input.value;saveState();}));});}
+function aboutSettingsHtml() {
+  return `<div class="settings-about"><img src="assets/logo.png" onerror="this.onerror=null;this.src='assets/logo.svg'" alt="つくルート"><h3>つくルート</h3><span>バージョン v1.0</span><p>フリーランスの制作進行とお金を、ひとつの場所で管理するアプリです。</p><div class="info-box">正式ロゴを設定するときは <code>assets/logo.png</code> を差し替えてください。</div></div>`;
+}
+
+function platformFeeSettingsHtml(){return `<h3 class="section-title">プラットフォーム</h3><p class="field__hint">仲介サービス名と手数料率を登録します。</p><div id="platform-editor">${(state.settings.platforms||[]).map((platform)=>`<div class="platform-editor-row" data-id="${escapeHtml(platform.id)}"><input class="input" data-field="name" value="${escapeHtml(platform.name)}" aria-label="名前"><label><input class="input" data-field="rate" type="number" min="0" max="100" step="0.01" value="${Number(platform.feeRate)*100}">%</label><button type="button" class="icon-btn" data-action="delete-platform" data-platform-id="${escapeHtml(platform.id)}">${ICONS.trash}</button></div>`).join('')}</div><div class="settings-actions"><button type="button" class="btn" data-action="add-platform">追加</button><button type="button" class="btn btn--primary" id="save-platforms">保存</button></div>`;}
+function wirePlatformFeeSettings(overlay){const editor=$('#platform-editor',overlay);if(!editor)return;$('#save-platforms',overlay).addEventListener('click',()=>{let valid=true;$all('.platform-editor-row',editor).forEach((row)=>{const platform=state.settings.platforms.find((item)=>item.id===row.dataset.id);const name=$('[data-field="name"]',row).value.trim();const percent=Number($('[data-field="rate"]',row).value);if(!platform||!name||!Number.isFinite(percent)||percent<0||percent>100){valid=false;return;}platform.name=name;platform.feeRate=percent/100;});if(!valid){showToast('名前と0〜100%の手数料率を確認してください','error');return;}syncAllAutoProjectExpenses();saveState();renderCurrentTab();showToast('プラットフォームを保存しました');});}
+
+function priceListSettingsHtml(){return `<h3 class="section-title">単価表</h3><p class="field__hint">見積作成時の選択肢です。金額やカテゴリはいつでも変更できます。</p><div class="price-list-editor" id="priceListEditor">${state.settings.priceList.map((item,idx)=>`<div class="price-list-row" data-idx="${idx}"><input class="input" data-field="category" value="${escapeHtml(item.category)}" aria-label="カテゴリ"><input class="input" data-field="name" value="${escapeHtml(item.name)}" aria-label="項目名"><select class="select" data-field="type"><option value="fixed" ${item.type!=='rate'?'selected':''}>金額</option><option value="rate" ${item.type==='rate'?'selected':''}>率（%）</option></select><input class="input" type="number" min="0" data-field="value" value="${item.type==='rate'?Math.round((item.rate||0)*100):Number(item.price)||0}" aria-label="金額または率"><button type="button" class="icon-btn" data-action="delete-price-item" data-idx="${idx}">${ICONS.trash}</button></div>`).join('')}</div><button type="button" class="btn btn--primary" data-action="add-price-item">${ICONS.plus}項目を追加</button>`;}
+function wirePriceListSettings(overlay){const editor=$('#priceListEditor',overlay);$all('.price-list-row',editor).forEach((row)=>{$all('[data-field]',row).forEach((input)=>input.addEventListener('change',()=>{const item=state.settings.priceList[Number(row.dataset.idx)];const field=input.dataset.field;if(field==='value'){if(item.type==='rate')item.rate=(Number(input.value)||0)/100;else item.price=Number(input.value)||0;}else item[field]=input.value;saveState();}));});}
 
 /* ---- 工程テンプレート ---- */
 function templateSettingsHtml() {
@@ -2165,7 +2264,7 @@ function backupSettingsHtml() {
 function blobToDataUrl(blob){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(reader.error);reader.readAsDataURL(blob);});}
 function dataUrlToBlob(url){const parts=String(url).split(',');const mime=(parts[0].match(/data:([^;]+)/)||[])[1]||'application/octet-stream';const bytes=atob(parts[1]||'');const arr=new Uint8Array(bytes.length);for(let i=0;i<bytes.length;i++)arr[i]=bytes.charCodeAt(i);return new Blob([arr],{type:mime});}
 async function exportFullBackup(){const images=await imageGetAll();const encoded=[];for(const row of images)encoded.push({id:row.id,dataUrl:await blobToDataUrl(row.blob)});state.settings.lastBackupAt=todayStr();saveState();const payload={format:'tsukuroute-full-backup',version:1,exportedAt:new Date().toISOString(),data:JSON.parse(JSON.stringify(state)),images:encoded};downloadBlob(new Blob([JSON.stringify(payload)],{type:'application/json'}),`tsukuroute-backup-${todayStr()}.json`);}
-async function importFullBackup(text){const payload=JSON.parse(text);if(!payload||payload.format!=='tsukuroute-full-backup'||!payload.data||!Array.isArray(payload.images))throw new Error('invalid backup');state=migrateData(payload.data);await imageReplaceAll(payload.images.map((row)=>({id:row.id,blob:dataUrlToBlob(row.dataUrl)})));saveState();applyAccentTheme(state.settings.accentColor);}
+async function importFullBackup(text){const payload=JSON.parse(text);if(!payload||payload.format!=='tsukuroute-full-backup'||!payload.data||!Array.isArray(payload.images))throw new Error('invalid backup');state=migrateData(payload.data);const obsolete=new Set(pendingHeaderImageDeletes);await imageReplaceAll(payload.images.filter((row)=>!obsolete.has(row.id)).map((row)=>({id:row.id,blob:dataUrlToBlob(row.dataUrl)})));obsolete.forEach((id)=>pendingHeaderImageDeletes.delete(id));saveState();applyAccentTheme(state.settings.accentColor);}
 
 function wireBackupSettings(overlay) {
   $('#import-backup-btn', overlay).addEventListener('click', () => $('#import-backup-file', overlay).click());
@@ -2201,9 +2300,8 @@ function openWelcomeModal() {
 const TOUR_STEPS = [
   { tab:'home', selector:'.tab-btn[data-tab="home"]', title:'ホーム', text:'売上と直近のタスクを、ひと目で確認できます。' },
   { tab:'calendar', selector:'.tab-btn[data-tab="calendar"]', title:'カレンダー', text:'すべての案件の工程期限と納期を、リスト・月・週・予定で確認できます。' },
-  { tab:'projects', selector:'.tab-btn[data-tab="projects"]', title:'案件', text:'納期を入れると、必要な工程と期限を自動で計画します。' },
+  { tab:'projects', selector:'.tab-btn[data-tab="projects"]', title:'案件と作品', text:'案件の進行管理と、納品作品のアルバムを切り替えて確認できます。' },
   { tab:'money', selector:'.tab-btn[data-tab="money"]', title:'お金', text:'請求書の作成と、確定申告に使う売上・経費を記録できます。' },
-  { tab:'gallery', selector:'.tab-btn[data-tab="gallery"]', title:'作品', text:'納品した作品を、制作期間と一緒にアルバムとして残せます。' },
   { tab:null, selector:'#openSettingsBtn', title:'設定', text:'工程テンプレートの日数を、自分の作業ペースに合わせて編集できます。' },
 ];
 let tourIndex = 0;
@@ -2213,12 +2311,13 @@ function showTourStep() {
   const step = TOUR_STEPS[tourIndex]; if (!step) { endTour(); return; }
   if (step.tab) switchTab(step.tab);
   let target = $(step.selector);
-  if (!target || getComputedStyle(target).display === 'none') target = $(`.tabbar__btn[data-tab="${step.tab}"]`) || ((step.tab === 'gallery' || !step.tab) ? $('#tabBarMoreBtn') : null) || target;
+  if (!target || getComputedStyle(target).display === 'none') target = $(`.tabbar__btn[data-tab="${step.tab||'settings'}"]`) || target;
   const rect = target ? target.getBoundingClientRect() : { left:20, top:20, width:40, height:40, bottom:60 };
   let root = $('#tourRoot'); if (root) root.remove(); root = document.createElement('div'); root.id = 'tourRoot'; root.className = 'tour-overlay';
-  const popHeight=210;
-  const top=rect.top>window.innerHeight/2?Math.max(16,rect.top-popHeight-14):Math.max(16,Math.min(window.innerHeight-popHeight-16,rect.bottom+14));
-  const left=Math.max(16,Math.min(window.innerWidth-326,rect.left));
+  const margin=16, gap=14, popWidth=Math.min(310,window.innerWidth-margin*2), popHeight=210;
+  const isBottomNav=!!(target&&target.closest('.tabbar')); const showAbove=isBottomNav||rect.top>window.innerHeight/2;
+  const top=Math.max(margin,Math.min(window.innerHeight-popHeight-margin,showAbove?rect.top-popHeight-gap:rect.bottom+gap));
+  const left=Math.max(margin,Math.min(window.innerWidth-popWidth-margin,rect.left+rect.width/2-popWidth/2));
   root.innerHTML = `<div class="tour-highlight" style="left:${rect.left-6}px;top:${rect.top-6}px;width:${rect.width+12}px;height:${rect.height+12}px"></div><div class="tour-popover" style="left:${left}px;top:${top}px"><div class="tour-step">${tourIndex+1} / ${TOUR_STEPS.length}</div><h3>${escapeHtml(step.title)}</h3><p>${escapeHtml(step.text)}</p><div><button type="button" class="text-link" data-action="skip-tour">スキップ</button><button type="button" class="btn btn--primary" data-action="next-tour">${tourIndex === TOUR_STEPS.length-1 ? '完了' : '次へ'}</button></div></div>`;
   document.body.appendChild(root);
 }
@@ -2239,17 +2338,24 @@ document.addEventListener('click', (e) => {
       if (e.target.classList.contains('sheet-overlay')) closeMoreSheet();
       break;
 
-    case 'open-more-gallery':
-      closeMoreSheet(); switchTab('gallery');
-      break;
-
-    case 'open-more-settings':
-      closeMoreSheet(); openSettingsModal();
-      break;
-
     case 'open-new-project':
       openNewProjectModal();
       break;
+
+    case 'set-projects-section':
+      projectsSectionMode=btn.dataset.section==='gallery'?'gallery':'projects';renderProjectsTab();break;
+
+    case 'show-all-works':
+      projectsSectionMode='gallery';switchTab('projects');break;
+
+    case 'edit-avatar': openAvatarModal();break;
+    case 'reset-avatar': {const id=state.settings.avatarImageId;state.settings.avatarImageId=null;saveState();if(id)imageDelete(id);closeModal();renderHome();break;}
+
+    case 'filter-project-status':
+      projectsStatusFilter=btn.dataset.status==='done'?'done':'in_progress'; renderProjectsTab(); break;
+
+    case 'back-to-expenses':
+      moneySubTab='expenses'; renderMoneyTab(); break;
 
     case 'home-month-prev':
       homeMonth = new Date(homeMonth.getFullYear(), homeMonth.getMonth() - 1, 1);
@@ -2383,17 +2489,6 @@ document.addEventListener('click', (e) => {
       saveState(); closeModal(); renderCurrentTab(); showToast('保存しました');
       break;
 
-    case 'move-step-up':
-    case 'move-step-down': {
-      const overlayEl=document.getElementById('activeModalOverlay'); const projectId=currentDetailProjectId(overlayEl);
-      const p=state.projects.find((project)=>project.id===projectId); if(!p)break;
-      const index=p.steps.findIndex((step)=>step.id===btn.dataset.stepId); const direction=action==='move-step-up'?-1:1; const target=index+direction;
-      if(index<0||target<0||target>=p.steps.length)break;
-      [p.steps[index],p.steps[target]]=[p.steps[target],p.steps[index]]; p.updatedAt=new Date().toISOString();
-      saveState(); refreshProjectDetail(overlayEl,p.id); renderCurrentTab();
-      break;
-    }
-
     case 'add-step': {
       const p = state.projects.find((x) => x.id === btn.dataset.projectId);
       if (!p) break;
@@ -2462,15 +2557,19 @@ document.addEventListener('click', (e) => {
       openSettingsModal();
       break;
 
-    case 'switch-settings-tab': {
-      settingsTab = btn.dataset.subtab;
+    case 'open-settings-detail': {
+      settingsTab = btn.dataset.setting;
       if (settingsTab !== 'recurring') settingsEditingRecurringId = null;
       const overlayEl = document.getElementById('activeModalOverlay');
-      if (overlayEl) {
-        $all('[data-action="switch-settings-tab"]', overlayEl).forEach((tab) => tab.classList.toggle('is-active', tab.dataset.subtab === settingsTab));
-        wireSettingsModal(overlayEl);
-        requestAnimationFrame(() => btn.scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' }));
-      }
+      if (overlayEl) renderSettingsModal(overlayEl);
+      break;
+    }
+
+    case 'settings-back': {
+      settingsTab = null;
+      settingsEditingRecurringId = null;
+      const overlayEl = document.getElementById('activeModalOverlay');
+      if (overlayEl) renderSettingsModal(overlayEl);
       break;
     }
 
@@ -2503,11 +2602,17 @@ document.addEventListener('click', (e) => {
       { const overlayEl=document.getElementById('activeModalOverlay'); if(overlayEl) wireSettingsModal(overlayEl); }
       break;
 
+    case 'set-appearance':
+      if(!['light','dark','system'].includes(btn.dataset.appearance))break;state.settings.appearance=btn.dataset.appearance;saveState();applyAppearance();{const overlayEl=document.getElementById('activeModalOverlay');if(overlayEl)wireSettingsModal(overlayEl);}break;
+
     case 'add-price-item':
       state.settings.priceList.push({id:uuid(),category:'基本料金',name:'新しい項目',price:0,type:'fixed'});saveState();{const overlayEl=document.getElementById('activeModalOverlay');if(overlayEl)wireSettingsModal(overlayEl);}break;
 
     case 'delete-price-item':
       if(!confirm('この単価項目を削除しますか？'))break;state.settings.priceList.splice(Number(btn.dataset.idx),1);saveState();{const overlayEl=document.getElementById('activeModalOverlay');if(overlayEl)wireSettingsModal(overlayEl);}break;
+
+    case 'add-platform': state.settings.platforms.push({id:uuid(),name:'新しいプラットフォーム',feeRate:0});saveState();{const overlayEl=document.getElementById('activeModalOverlay');if(overlayEl)wireSettingsModal(overlayEl);}break;
+    case 'delete-platform': {if(state.projects.some((project)=>project.platformId===btn.dataset.platformId)){showToast('使用中のプラットフォームは削除できません','error');break;}state.settings.platforms=state.settings.platforms.filter((item)=>item.id!==btn.dataset.platformId);saveState();{const overlayEl=document.getElementById('activeModalOverlay');if(overlayEl)wireSettingsModal(overlayEl);}break;}
 
     case 'add-template-row': {
       const prefix = btn.dataset.prefix || 'tpl';
@@ -2668,6 +2773,10 @@ document.addEventListener('click', (e) => {
       saveQuoteAsJpg(btn.dataset.quoteId);
       break;
 
+    case 'share-quote-jpg':
+      saveQuoteAsJpg(btn.dataset.quoteId,true);
+      break;
+
     case 'export-quote-csv':
       exportDocumentItemsCsv('quote',btn.dataset.quoteId);
       break;
@@ -2678,7 +2787,7 @@ document.addEventListener('click', (e) => {
     }
 
     case 'open-price-list-settings': {
-      closeModal();openSettingsModal();settingsTab='priceList';const overlayEl=document.getElementById('activeModalOverlay');if(overlayEl){$all('[data-action="switch-settings-tab"]',overlayEl).forEach((tab)=>tab.classList.toggle('is-active',tab.dataset.subtab===settingsTab));wireSettingsModal(overlayEl);}break;
+      closeModal();openSettingsModal({initialTab:'priceList'});break;
     }
 
     case 'open-invoice':
@@ -2708,6 +2817,10 @@ document.addEventListener('click', (e) => {
       saveInvoiceAsJpg(btn.dataset.invoiceId);
       break;
 
+    case 'share-invoice-jpg':
+      saveInvoiceAsJpg(btn.dataset.invoiceId,true);
+      break;
+
     case 'export-invoice-csv':
       exportDocumentItemsCsv('invoice',btn.dataset.invoiceId);
       break;
@@ -2733,18 +2846,12 @@ document.addEventListener('click', (e) => {
 function initTabsNav() {
   $all('.tab-btn').forEach((btn) => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
   $all('.tabbar__btn').forEach((btn) => btn.addEventListener('click', () => {
-    if (btn.dataset.tab === 'more') { openMoreSheet(); return; }
     switchTab(btn.dataset.tab);
   }));
   const settingsBtn = $('#openSettingsBtn');
   if (settingsBtn) settingsBtn.addEventListener('click', openSettingsModal);
   const newProjectBtn = $('#newProjectBtn');
   if (newProjectBtn) newProjectBtn.addEventListener('click', openNewProjectModal);
-  $all('#projectsViewToggle .segmented__btn').forEach((btn) => btn.addEventListener('click', () => {
-    projectsViewMode = btn.dataset.mode;
-    $all('#projectsViewToggle .segmented__btn').forEach((b) => b.classList.toggle('is-active', b === btn));
-    renderProjectsTab();
-  }));
 }
 
 function init() {
@@ -2752,8 +2859,11 @@ function init() {
   const appTitle = $('.app-header__title');
   if (appTitle) appTitle.textContent = APP_NAME;
   if (shouldPersistLoadedState) { syncAllAutoProjectExpenses(); generateRecurringExpensesThroughCurrentMonth(); saveState(); }
-  applyAccentTheme(state.settings.accentColor);
+  cleanupObsoleteHeaderImages().catch((error)=>console.warn('旧バナー画像の削除に失敗しました',error));
+  applyAppearance();
   initTabsNav();
+  const onSystemAppearanceChange=()=>{if(state.settings.appearance==='system')applyAppearance();};
+  if(appearanceMedia.addEventListener)appearanceMedia.addEventListener('change',onSystemAppearanceChange);else appearanceMedia.addListener(onSystemAppearanceChange);
   renderCurrentTab();
   let wasMobile=window.matchMedia('(max-width: 767px)').matches;
   window.addEventListener('resize',()=>{const isMobile=window.matchMedia('(max-width: 767px)').matches;if(isMobile!==wasMobile){wasMobile=isMobile;if(currentTab==='calendar')renderCalendar();}const modal=document.getElementById('activeModalOverlay');if(modal)fitA4Preview(modal);fitDocumentMiniatures(document);});
