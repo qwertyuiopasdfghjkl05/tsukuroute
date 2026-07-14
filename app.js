@@ -168,9 +168,10 @@ function applyAccentTheme(color) {
   root.style.setProperty('--accent-grad',`linear-gradient(135deg,${gradStart} 0%,${gradEnd} 100%)`);
   root.style.setProperty('--accent-grad-soft',`linear-gradient(135deg,rgba(${rgb.r},${rgb.g},${rgb.b},${(.20*softFactor).toFixed(3)}) 0%,rgba(${shiftedRgb.r},${shiftedRgb.g},${shiftedRgb.b},${(.12*softFactor).toFixed(3)}) 100%)`);
   root.style.setProperty('--accent-tile-grad',`linear-gradient(135deg,${tileStart} 0%,${tileEnd} 100%)`);
-  root.style.setProperty('--accent-tile-ink',colorText(tileStart)==='#182842'||colorText(tileEnd)==='#182842'?'#182842':'#FFFFFF');
+  const tileInk=isDark?(colorText(tileStart)==='#182842'||colorText(tileEnd)==='#182842'?'#182842':'#FFFFFF'):'#FFFFFF';
+  root.style.setProperty('--accent-tile-ink',tileInk);
   root.style.setProperty('--bg',isDark?'#14171D':mixHex('#FAF9F6',hex,.04));
-  const gradientText=colorText(gradStart)==='#182842'||colorText(gradEnd)==='#182842'?'#182842':'#FFFFFF';
+  const gradientText=isDark?(colorText(gradStart)==='#182842'||colorText(gradEnd)==='#182842'?'#182842':'#FFFFFF'):'#FFFFFF';
   root.style.setProperty('--accent-contrast',gradientText);
   root.style.setProperty('--greeting-text',gradientText);
   root.style.setProperty('--nav-accent',root.dataset.theme==='dark'?hex:(colorText(hex)==='#182842'?'#182842':hex));
@@ -266,13 +267,14 @@ let homeMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
 function switchTab(tab) {
   if(tab==='gallery'){tab='projects';projectsSectionMode='gallery';}
-  if(tab==='settings'){$all('.tabbar__btn').forEach((b)=>b.classList.toggle('is-active',b.dataset.tab==='settings'));openSettingsModal();return;}
   currentTab = tab;
   $all('.view').forEach((v) => v.classList.remove('is-active'));
   const view = $(`#view-${tab}`);
   if (view) view.classList.add('is-active');
   $all('.tab-btn').forEach((b) => b.classList.toggle('is-active', b.dataset.tab === tab));
   $all('.tabbar__btn').forEach((b) => b.classList.toggle('is-active', b.dataset.tab === tab));
+  const settingsButton=$('#openSettingsBtn');
+  if(settingsButton)settingsButton.classList.toggle('is-active',tab==='settings');
   renderCurrentTab();
   const main=$('.app-main');if(main)main.scrollTo(0,0);window.scrollTo(0, 0);
 }
@@ -282,6 +284,7 @@ function renderCurrentTab() {
   else if (currentTab === 'calendar') renderCalendar();
   else if (currentTab === 'projects') renderProjectsTab();
   else if (currentTab === 'money') renderMoneyTab();
+  else if (currentTab === 'settings') renderSettingsView();
 }
 
 /* ===================== カレンダー ===================== */
@@ -480,6 +483,7 @@ function renderHome() {
         <button type="button" class="business-card" data-action="home-money-card" data-subtab="ledger"><i class="business-card__icon">${ICONS.wallet}</i><span>未入金</span><strong>${formatMoney(unbilledTotal)}</strong></button>
         <button type="button" class="business-card" data-action="home-money-card" data-subtab="ledger"><i class="business-card__icon">${ICONS.chart}</i><span>今月の売上</span><strong>${formatMoney(thisMonthTotal)}</strong></button>
         <button type="button" class="business-card" data-action="home-money-card" data-subtab="expenses"><i class="business-card__icon">${ICONS.receipt}</i><span>経費・領収書</span><strong>${monthExpenses}件</strong></button>
+        <button type="button" class="business-card business-card--shortcut" data-action="quick-add-expense"><i class="business-card__icon">${ICONS.plus}</i><span>日常ショートカット</span><strong>経費を追加</strong></button>
       </section>
     </div>
   `;
@@ -542,6 +546,7 @@ function renderProjectsTab() {
   if(projectsSectionMode==='gallery'){renderGalleryTab();return;}
 
   if (state.projects.length === 0) {
+    projectSelectionMode=false;selectedProjectIds.clear();
     listWrap.style.display = '';
     listWrap.innerHTML = emptyStateHtml('folder', '案件がまだありません', '「案件を追加」から最初の案件を登録しましょう。', 'open-new-project', '案件を追加');
     return;
@@ -554,8 +559,12 @@ function renderProjectsTab() {
   const done = state.projects.filter((p) => p.status === 'done').sort((a, b) => diffDays(b.dueDate, a.dueDate));
   if(statusToggle) statusToggle.innerHTML=`<button class="segmented__btn ${projectsStatusFilter==='in_progress'?'is-active':''}" data-action="filter-project-status" data-status="in_progress" type="button">進行中 ${inProgress.length}</button><button class="segmented__btn ${projectsStatusFilter==='done'?'is-active':''}" data-action="filter-project-status" data-status="done" type="button">完了 ${done.length}</button>`;
   { const shown=projectsStatusFilter==='done'?done:inProgress;
+    const shownIds=new Set(shown.map((project)=>project.id));
+    selectedProjectIds.forEach((id)=>{if(!shownIds.has(id))selectedProjectIds.delete(id);});
     listWrap.innerHTML = `
       <div class="home-block">
+        <div class="selection-toolbar"><button type="button" class="btn btn--sm ${projectSelectionMode?'is-active':''}" data-action="toggle-project-select-mode">${projectSelectionMode?'選択を終了':'選択'}</button>${projectSelectionMode?`<span>${selectedProjectIds.size}件選択中</span>`:''}</div>
+        ${projectSelectionMode&&selectedProjectIds.size?`<div class="bulk-action-bar"><strong>${selectedProjectIds.size}件を一括変更</strong><div><button type="button" class="btn btn--sm" data-action="bulk-project-billed">請求済みにする</button><button type="button" class="btn btn--sm btn--primary" data-action="bulk-project-paid">入金済みにする</button></div></div>`:''}
         ${shown.length ? `<div class="project-list">${shown.map(projectRowHtml).join('')}</div>` : compactEmptyHtml('sectionFolder',`${projectsStatusFilter==='done'?'完了した':'進行中の'}案件はありません。`)}
       </div>
     `;
@@ -569,6 +578,7 @@ function projectRowHtml(p) {
   const keyDates = projectKeyDates(p);
   return `
   <div class="project-row" style="border-left-color:${p.color}" data-action="open-project" data-project-id="${p.id}">
+    ${projectSelectionMode?`<input class="bulk-check" type="checkbox" data-action="toggle-project-selection" data-project-id="${escapeHtml(p.id)}" ${selectedProjectIds.has(p.id)?'checked':''} aria-label="${escapeHtml(p.title)}を選択">`:''}
     <div class="project-row__main">
       <div class="project-row__title-line">
         <span class="project-color-dot" style="background:${p.color}"></span><span class="project-row__title">${escapeHtml(p.title)}</span>
@@ -868,9 +878,9 @@ function projectDetailHtml(p) {
       </div>
     </div>
   </div>
-  <div class="modal__footer" style="justify-content:space-between;">
+  <div class="modal__footer project-detail-footer">
     <button type="button" class="btn btn--danger" data-action="delete-project" data-project-id="${p.id}">${ICONS.trash}削除</button>
-    <div style="display:flex; gap:10px;">
+    <div class="project-detail-actions">
       <button type="button" class="btn" data-action="create-invoice-from-project" data-project-id="${p.id}">請求書を作成</button>
       <button type="button" class="btn btn--primary" data-action="save-close-project" data-project-id="${p.id}">保存する</button>
     </div>
@@ -1006,6 +1016,10 @@ let moneyYear = new Date().getFullYear();
 let ledgerMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let expenseCategoryFilter = '__all__';
 let editingExpenseId = null;
+let expenseSelectionMode = false;
+const selectedExpenseIds = new Set();
+let projectSelectionMode = false;
+const selectedProjectIds = new Set();
 
 function renderMoneyTab() {
   const container = $('#moneyContent');
@@ -1022,8 +1036,10 @@ function renderMoneyTab() {
       <div class="year-switch__label">${moneyYear}年</div>
       <button type="button" class="icon-btn" data-action="money-year-next">${arrowRightSvg()}</button>
     </div>
-    <div class="money-subtabs">
-      ${subtabs.map((t) => `<button type="button" class="money-subtab-btn ${moneySubTab === t ? 'is-active' : ''}" data-action="switch-money-subtab" data-subtab="${t}">${subtabLabels[t]}</button>`).join('')}
+    <div class="money-subtabs" aria-label="お金の機能">
+      <div class="money-subtab-group"><span>日々のお金</span>${subtabs.slice(0,2).map((t) => `<button type="button" class="money-subtab-btn ${moneySubTab === t ? 'is-active' : ''}" data-action="switch-money-subtab" data-subtab="${t}">${subtabLabels[t]}</button>`).join('')}</div>
+      <div class="money-subtab-group"><span>書類</span>${subtabs.slice(2,4).map((t) => `<button type="button" class="money-subtab-btn ${moneySubTab === t ? 'is-active' : ''}" data-action="switch-money-subtab" data-subtab="${t}">${subtabLabels[t]}</button>`).join('')}</div>
+      <div class="money-subtab-group"><span>年次</span>${subtabs.slice(4).map((t) => `<button type="button" class="money-subtab-btn ${moneySubTab === t ? 'is-active' : ''}" data-action="switch-money-subtab" data-subtab="${t}">${subtabLabels[t]}</button>`).join('')}</div>
     </div>
     <div id="moneySubContent"></div>
   `;
@@ -1096,6 +1112,8 @@ function expensesHtml(year) {
   const maxCat = Math.max(1, ...Object.values(byCategory));
   const editCategoryKnown = editing && EXPENSE_CATEGORIES.includes(editing.category);
   const editingRecurring = !!(editing && editing.autoRecurringId);
+  const selectableIds=new Set(sorted.filter((expense)=>!expense.autoProjectId&&!expense.autoRecurringId).map((expense)=>expense.id));
+  selectedExpenseIds.forEach((id)=>{if(!selectableIds.has(id))selectedExpenseIds.delete(id);});
 
   return `
     <div class="expense-overview">
@@ -1137,11 +1155,15 @@ function expensesHtml(year) {
       ${categories.map((c) => `<button type="button" class="chip ${expenseCategoryFilter === c ? 'is-active' : ''}" data-action="filter-expense-category" data-category="${escapeHtml(c)}">${c === '__all__' ? 'すべて' : escapeHtml(c)}</button>`).join('')}
     </div>
 
+    <div class="selection-toolbar"><button type="button" class="btn btn--sm ${expenseSelectionMode?'is-active':''}" data-action="toggle-expense-select-mode">${expenseSelectionMode?'選択を終了':'選択'}</button>${expenseSelectionMode?`<span>${selectedExpenseIds.size}件選択中</span>`:''}</div>
+    ${expenseSelectionMode&&selectedExpenseIds.size?`<div class="bulk-action-bar"><strong>${selectedExpenseIds.size}件を一括変更</strong><div><select class="select bulk-category-select" id="bulkExpenseCategory">${EXPENSE_CATEGORIES.map((category)=>`<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`).join('')}${extraCats.map((category)=>`<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`).join('')}</select><button type="button" class="btn btn--sm" data-action="bulk-expense-category">カテゴリを変更</button><button type="button" class="btn btn--sm btn--danger" data-action="bulk-delete-expenses">削除</button></div></div>`:''}
+
     ${sorted.length === 0 ? compactEmptyHtml('receipt','経費の記録がありません。') : `
     <div class="table-wrap"><table class="data-table">
-      <thead><tr><th>経費</th><th class="num-cell">金額</th><th>領収書</th><th></th></tr></thead>
+      <thead><tr>${expenseSelectionMode?'<th class="bulk-check-cell">選択</th>':''}<th>経費</th><th class="num-cell">金額</th><th>領収書</th><th></th></tr></thead>
       <tbody>
       ${sorted.map((e) => `<tr>
+        ${expenseSelectionMode?`<td class="bulk-check-cell"><input class="bulk-check" type="checkbox" data-action="toggle-expense-selection" data-expense-id="${escapeHtml(e.id)}" ${selectedExpenseIds.has(e.id)?'checked':''} ${e.autoProjectId||e.autoRecurringId?'disabled':''} aria-label="${escapeHtml((e.memo||'').trim()||e.category)}を選択"></td>`:''}
         <td><strong class="expense-name">${escapeHtml((e.memo||'').trim() || e.category)}</strong><small class="expense-meta">${formatJPSlash(e.date)} ・ ${escapeHtml(e.category)}</small>${e.autoProjectId ? '<span class="badge badge--auto">自動</span>' : ''}${e.autoRecurringId ? '<span class="badge badge--recurring">定期</span>' : ''}</td>
         <td class="num-cell">${formatMoney(e.amount)}</td>
         <td>${e.receiptImageId ? `<img class="receipt-thumb" data-image-id="${e.receiptImageId}" data-action="view-image" data-image-view-id="${e.receiptImageId}" alt="領収書">` : ''}</td>
@@ -1153,7 +1175,14 @@ function expensesHtml(year) {
   `;
 }
 
-function wireExpenseForm(root) {
+function openQuickExpenseModal() {
+  editingExpenseId=null;
+  const overlay=openModal(`<div class="modal__header"><h2 class="modal__title">経費を追加</h2><button type="button" class="icon-btn" data-action="close-modal">${ICONS.close}</button></div><div class="modal__body"><form id="expenseForm" class="expense-form expense-form--modal"><div class="field"><label class="field__label">日付</label><input class="input" type="date" id="ef-date" value="${todayStr()}" required></div><div class="field"><label class="field__label">カテゴリ</label><select class="select" id="ef-category">${EXPENSE_CATEGORIES.map((category)=>`<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`).join('')}<option value="__custom__">自由入力…</option></select><input class="input" id="ef-category-custom" placeholder="カテゴリ名" style="display:none;margin-top:8px"></div><div class="field"><label class="field__label">金額（円）</label><input class="input" type="text" inputmode="numeric" data-money-input id="ef-amount" required placeholder="例: 3,000"></div><div class="field"><label class="field__label">メモ</label><input class="input" id="ef-memo" placeholder="任意"></div><div class="field"><label class="field__label">領収書</label><input type="file" id="ef-receipt" accept="image/*"></div><div class="expense-form__actions"><button type="submit" class="btn btn--primary">${ICONS.plus}追加</button></div></form></div>`,{narrow:true});
+  wireExpenseForm(overlay,{closeOnSave:true});
+}
+
+function wireExpenseForm(root,options) {
+  options=options||{};
   const catSel = $('#ef-category', root);
   if (!catSel) return;
   const catCustom = $('#ef-category-custom', root);
@@ -1182,6 +1211,7 @@ function wireExpenseForm(root) {
     else state.expenses.push({ id: uuid(), date, category, amount, memo, receiptImageId, createdAt: new Date().toISOString() });
     editingExpenseId = null;
     saveState();
+    if(options.closeOnSave){moneySubTab='expenses';moneyYear=parseDateStr(date).getFullYear();closeModal();}
     renderCurrentTab();
     showToast(editing ? '経費を更新しました' : '経費を追加しました');
   });
@@ -1614,8 +1644,10 @@ function markInvoicePaid(invoiceId) {
 }
 
 function deleteInvoice(invoiceId) {
+  const invoice=state.invoices.find((iv)=>iv.id===invoiceId);
+  if(!invoice)return;
   if (!confirm('この請求書を削除します。よろしいですか？')) return;
-  state.invoices = state.invoices.filter((iv) => iv.id !== invoiceId);
+  deleteInvoiceRecord(invoiceId);
   saveState();
   closeModal();
   renderCurrentTab();
@@ -1914,6 +1946,7 @@ let settingsTab = null;
 let settingsSelectedClientId = '';
 let settingsReturnToProject = false;
 let settingsEditingRecurringId = null;
+let settingsModalFromView = false;
 
 const SETTINGS_DETAIL_TITLES = {
   theme:'テーマカラー', issuer:'発行者情報', template:'工程テンプレート', clients:'クライアント管理',
@@ -1927,8 +1960,15 @@ function openSettingsModal(options) {
   settingsSelectedClientId = '';
   settingsEditingRecurringId = null;
   settingsReturnToProject = !!options.returnToProject;
+  settingsModalFromView = !!options.fromSettingsView;
   const overlay = openModal(settingsModalHtml(), { wide: true, stack:!!options.stack });
   wireSettingsModal(overlay);
+}
+
+function renderSettingsView() {
+  const content=$('#settingsViewContent');
+  if(!content)return;
+  content.innerHTML=`<div class="view-toolbar"><h1 class="view-title">設定</h1></div>${settingsHomeHtml()}`;
 }
 
 function settingsModalHtml() {
@@ -2060,7 +2100,7 @@ function usageSettingsHtml() {
 }
 
 function aboutSettingsHtml() {
-  return `<div class="settings-about"><img src="assets/logo.png" onerror="this.onerror=null;this.src='assets/logo.svg'" alt="つくルート"><h3>つくルート</h3><span>バージョン v1.0</span><p>フリーランスの制作進行とお金を、ひとつの場所で管理するアプリです。</p><div class="info-box">正式ロゴを設定するときは <code>assets/logo.png</code> を差し替えてください。</div></div>`;
+  return `<div class="settings-about"><img src="assets/logo.png" onerror="this.onerror=null;this.src='assets/logo.svg'" alt="つくルート"><h3>つくルート</h3><span>バージョン v1.0</span><p>フリーランスの制作進行とお金を、ひとつの場所で管理するアプリです。</p></div>`;
 }
 
 function platformFeeSettingsHtml(){return `<h3 class="section-title">プラットフォーム</h3><p class="field__hint">仲介サービス名と手数料率を登録します。</p><div id="platform-editor">${(state.settings.platforms||[]).map((platform)=>`<div class="platform-editor-row" data-id="${escapeHtml(platform.id)}"><input class="input" data-field="name" value="${escapeHtml(platform.name)}" aria-label="名前"><label><input class="input" data-field="rate" type="number" min="0" max="100" step="0.01" value="${Number(platform.feeRate)*100}">%</label><button type="button" class="icon-btn" data-action="delete-platform" data-platform-id="${escapeHtml(platform.id)}">${ICONS.trash}</button></div>`).join('')}</div><div class="settings-actions"><button type="button" class="btn" data-action="add-platform">追加</button><button type="button" class="btn btn--primary" id="save-platforms">保存</button></div>`;}
@@ -2371,6 +2411,10 @@ document.addEventListener('click', (e) => {
       moneySubTab=btn.dataset.subtab||'ledger'; switchTab('money');
       break;
 
+    case 'quick-add-expense':
+      openQuickExpenseModal();
+      break;
+
     case 'calendar-today':
       state.settings.calendarDate = todayStr();
       saveState(); renderCalendar();
@@ -2443,8 +2487,22 @@ document.addEventListener('click', (e) => {
     }
 
     case 'open-project':
+      if(projectSelectionMode)break;
       openProjectDetailModal(btn.dataset.projectId);
       break;
+
+    case 'toggle-project-select-mode':
+      projectSelectionMode=!projectSelectionMode;selectedProjectIds.clear();renderProjectsTab();break;
+
+    case 'toggle-project-selection':
+      if(selectedProjectIds.has(btn.dataset.projectId))selectedProjectIds.delete(btn.dataset.projectId);else selectedProjectIds.add(btn.dataset.projectId);renderProjectsTab();break;
+
+    case 'bulk-project-billed':
+    case 'bulk-project-paid': {
+      const status=action==='bulk-project-paid'?'paid':'billed';
+      state.projects.filter((project)=>selectedProjectIds.has(project.id)).forEach((project)=>setProjectPaymentStatus(project,status));
+      selectedProjectIds.clear();saveState();renderCurrentTab();showToast(status==='paid'?'選択した案件を入金済みにしました':'選択した案件を請求済みにしました');break;
+    }
 
     case 'delete-project': {
       if (!confirm('この案件を削除します。関連する画像も削除されます。よろしいですか？')) break;
@@ -2521,8 +2579,7 @@ document.addEventListener('click', (e) => {
     case 'set-payment-status': {
       const p = state.projects.find((x) => x.id === btn.dataset.projectId);
       if (!p) break;
-      p.paymentStatus = btn.dataset.status;
-      if (p.paymentStatus === 'paid' && !p.paidDate) p.paidDate = todayStr();
+      setProjectPaymentStatus(p,btn.dataset.status);
       saveState();
       refreshProjectDetail(document.getElementById('activeModalOverlay'), p.id);
       renderCurrentTab();
@@ -2558,10 +2615,14 @@ document.addEventListener('click', (e) => {
       break;
 
     case 'open-settings-detail': {
-      settingsTab = btn.dataset.setting;
-      if (settingsTab !== 'recurring') settingsEditingRecurringId = null;
       const overlayEl = document.getElementById('activeModalOverlay');
-      if (overlayEl) renderSettingsModal(overlayEl);
+      if (overlayEl) {
+        settingsTab = btn.dataset.setting;
+        if (settingsTab !== 'recurring') settingsEditingRecurringId = null;
+        renderSettingsModal(overlayEl);
+      } else {
+        openSettingsModal({ initialTab:btn.dataset.setting, fromSettingsView:true });
+      }
       break;
     }
 
@@ -2569,7 +2630,11 @@ document.addEventListener('click', (e) => {
       settingsTab = null;
       settingsEditingRecurringId = null;
       const overlayEl = document.getElementById('activeModalOverlay');
-      if (overlayEl) renderSettingsModal(overlayEl);
+      if (settingsModalFromView) {
+        settingsModalFromView = false;
+        closeModal();
+        renderSettingsView();
+      } else if (overlayEl) renderSettingsModal(overlayEl);
       break;
     }
 
@@ -2733,8 +2798,33 @@ document.addEventListener('click', (e) => {
 
     case 'filter-expense-category':
       expenseCategoryFilter = btn.dataset.category;
+      selectedExpenseIds.clear();
       renderMoneyTab();
       break;
+
+    case 'toggle-expense-select-mode':
+      expenseSelectionMode=!expenseSelectionMode;selectedExpenseIds.clear();renderMoneyTab();break;
+
+    case 'toggle-expense-selection': {
+      const expense=state.expenses.find((item)=>item.id===btn.dataset.expenseId);
+      if(!expense||expense.autoProjectId||expense.autoRecurringId)break;
+      if(selectedExpenseIds.has(expense.id))selectedExpenseIds.delete(expense.id);else selectedExpenseIds.add(expense.id);
+      renderMoneyTab();break;
+    }
+
+    case 'bulk-expense-category': {
+      const select=$('#bulkExpenseCategory');const category=select&&select.value;
+      if(!category)break;
+      state.expenses.filter((expense)=>selectedExpenseIds.has(expense.id)&&!expense.autoProjectId&&!expense.autoRecurringId).forEach((expense)=>{expense.category=category;expense.updatedAt=new Date().toISOString();});
+      selectedExpenseIds.clear();saveState();renderMoneyTab();showToast('選択した経費のカテゴリを変更しました');break;
+    }
+
+    case 'bulk-delete-expenses': {
+      const targets=state.expenses.filter((expense)=>selectedExpenseIds.has(expense.id)&&!expense.autoProjectId&&!expense.autoRecurringId);
+      if(!targets.length||!confirm(`${targets.length}件の経費を削除します。よろしいですか？`))break;
+      targets.forEach((expense)=>{if(expense.receiptImageId)imageDelete(expense.receiptImageId);});
+      const ids=new Set(targets.map((expense)=>expense.id));state.expenses=state.expenses.filter((expense)=>!ids.has(expense.id));selectedExpenseIds.clear();saveState();renderMoneyTab();showToast('選択した経費を削除しました');break;
+    }
 
     case 'delete-expense': {
       if (!confirm('この経費を削除します。よろしいですか？')) break;
@@ -2849,7 +2939,7 @@ function initTabsNav() {
     switchTab(btn.dataset.tab);
   }));
   const settingsBtn = $('#openSettingsBtn');
-  if (settingsBtn) settingsBtn.addEventListener('click', openSettingsModal);
+  if (settingsBtn) settingsBtn.addEventListener('click', () => switchTab('settings'));
   const newProjectBtn = $('#newProjectBtn');
   if (newProjectBtn) newProjectBtn.addEventListener('click', openNewProjectModal);
 }

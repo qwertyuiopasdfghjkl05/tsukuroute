@@ -8,6 +8,7 @@
 
 /* ===================== 定数 ===================== */
 const STORAGE_KEY = 'taskcanvas-v2';
+const CURRENT_DATA_VERSION = 3;
 const APP_NAME = 'つくルート';
 const PROJECT_COLORS = ['#FF5252', '#FF9800', '#FFD600', '#4CAF50', '#00BCD4', '#2979FF', '#AB47BC'];
 const LEGACY_PROJECT_COLOR_MAP = {
@@ -125,7 +126,7 @@ function calcWithholding(amount) { return floorYen((amount || 0) * WITHHOLDING_R
 /* ===================== データモデル ===================== */
 function defaultData() {
   return {
-    version: 2,
+    version: CURRENT_DATA_VERSION,
     projects: [],
     clients: [],
     expenses: [],
@@ -169,6 +170,8 @@ function migrateData(parsed) {
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('invalid data');
   const base = defaultData();
   const merged = Object.assign({}, base, parsed || {});
+
+  // --- settings ---
   merged.settings = Object.assign({}, base.settings, (parsed && parsed.settings) || {});
   if(merged.settings.headerImageId)pendingHeaderImageDeletes.add(merged.settings.headerImageId);
   if(Array.isArray(merged.settings.headerImages))merged.settings.headerImages.filter(Boolean).forEach((id)=>pendingHeaderImageDeletes.add(id));
@@ -189,9 +192,15 @@ function migrateData(parsed) {
   merged.settings.defaultTemplate = deliveryLast(((parsed && parsed.settings) && Array.isArray(parsed.settings.defaultTemplate))
     ? parsed.settings.defaultTemplate : base.settings.defaultTemplate);
   merged.settings.priceList = ((parsed && parsed.settings) && Array.isArray(parsed.settings.priceList)) ? parsed.settings.priceList.map((item)=>Object.assign({ id:uuid(), category:'基本料金', name:'', price:0, type:'fixed' },item)) : base.settings.priceList;
+
+  // --- clients ---
   merged.clients = Array.isArray(parsed && parsed.clients) ? parsed.clients.map((c) => {const client=Object.assign({ id:uuid(),name:'',templateOverride:null },c);if(Array.isArray(client.templateOverride))client.templateOverride=deliveryLast(client.templateOverride);return client;}) : [];
-  merged.expenses = Array.isArray(parsed && parsed.expenses) ? parsed.expenses.map((e) => Object.assign({ id: uuid(), date: '', category: '雑費', amount: 0, memo: '', receiptImageId: null, autoProjectId: null, autoRecurringId: null, createdAt: new Date().toISOString() }, e)) : [];
+
+  // --- expenses / recurring ---
+  merged.expenses = Array.isArray(parsed && parsed.expenses) ? parsed.expenses.map((e) => Object.assign({ id: uuid(), date: '', category: '雑費', amount: 0, memo: '', receiptImageId: null, autoProjectId: null, autoRecurringId: null, platformFeeRateSnapshot:null, platformNameSnapshot:'', platformIdSnapshot:null, createdAt: new Date().toISOString() }, e)) : [];
   merged.recurringExpenses = Array.isArray(parsed && parsed.recurringExpenses) ? parsed.recurringExpenses.map((item) => Object.assign({ id:uuid(), name:'', category:'ソフトウェア・サブスク', amount:0, frequency:'monthly', monthOfYear:1, dayOfMonth:1, memo:'', startMonth:todayStr().slice(0,7), active:true }, item)) : [];
+
+  // --- invoices / quotes ---
   const issuerAtMigration = JSON.parse(JSON.stringify(merged.settings.issuer));
   merged.invoices = Array.isArray(parsed && parsed.invoices) ? parsed.invoices.map((iv) => {
     const invoice = Object.assign({ id: uuid(), number: '', projectId: null, issueDate: '', dueDate: '', clientName: '', honorific: '御中', subject: '', items: [], taxRate: DEFAULT_TAX_RATE, hasWithholding: false, notes: '', status: 'issued', issuerSnapshot:null, createdAt: new Date().toISOString() }, iv, { items:Array.isArray(iv.items)?iv.items.map((item)=>Object.assign({name:'',qty:1,unit:'式',unitPrice:0},item,{unit:item.unit||'式'})):[] });
@@ -203,7 +212,11 @@ function migrateData(parsed) {
     if (!quote.issuerSnapshot && ['sent','accepted'].includes(quote.status)) quote.issuerSnapshot = JSON.parse(JSON.stringify(issuerAtMigration));
     return quote;
   }) : [];
+
+  // --- gallery ---
   merged.galleryExtras = Array.isArray(parsed && parsed.galleryExtras) ? parsed.galleryExtras.map((g) => Object.assign({ id: uuid(), imageId: null, title: '', clientName: '', orderedDate: g.createdAt ? toDateStr(new Date(g.createdAt)) : null, deliveredDate: null, fee: 0, createdAt: new Date().toISOString() }, g, { orderedDate: g.orderedDate || (g.createdAt ? toDateStr(new Date(g.createdAt)) : null) })) : [];
+
+  // --- projects (color/steps/platform) ---
   merged.projects = [];
   (Array.isArray(parsed && parsed.projects) ? parsed.projects : []).forEach((raw) => {
     const legacyColor = LEGACY_PROJECT_COLOR_MAP[String(raw.color || '').toLowerCase()];
@@ -223,6 +236,28 @@ function migrateData(parsed) {
       createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
     }, raw, { platformId:raw.platformId||((raw.isCoconala||raw.hasCoconala||raw.coconala)?coconalaPlatform.id:null),color, orderedDate: raw.orderedDate || (raw.createdAt ? toDateStr(new Date(raw.createdAt)) : null), steps, imageIds: Array.isArray(raw.imageIds) ? raw.imageIds : [] }));
   });
+
+  // --- platform fee snapshots (v3) ---
+  const projectById=new Map(merged.projects.map((project)=>[project.id,project]));
+  merged.expenses.forEach((expense)=>{
+    if(!expense.autoProjectId)return;
+    const project=projectById.get(expense.autoProjectId)||null;
+    const memoName=String(expense.memo||'').match(/^(.*?)手数料(?:（|$)/);
+    const memoPlatform=(merged.settings.platforms||[]).find((platform)=>platform.name&&String(expense.memo||'').includes(platform.name));
+    const projectPlatform=project&&(merged.settings.platforms||[]).find((platform)=>platform.id===project.platformId);
+    const identifiedPlatform=projectPlatform||memoPlatform||null;
+    const savedRate=Number(expense.platformFeeRateSnapshot);
+    if(expense.platformFeeRateSnapshot===null||expense.platformFeeRateSnapshot===undefined||!Number.isFinite(savedRate)||savedRate<0||savedRate>1){
+      const projectFee=Number(project&&project.fee)||0;
+      const recordedAmount=Number(expense.amount)||0;
+      const fallbackRate=Number(identifiedPlatform&&identifiedPlatform.feeRate);
+      expense.platformFeeRateSnapshot=projectFee>0?recordedAmount/projectFee:(identifiedPlatform&&Number.isFinite(fallbackRate)?fallbackRate:0.22);
+    }
+    if(!expense.platformNameSnapshot)expense.platformNameSnapshot=(memoName&&memoName[1])||(identifiedPlatform&&identifiedPlatform.name)||'';
+    if(!expense.platformIdSnapshot)expense.platformIdSnapshot=(project&&project.platformId)||(identifiedPlatform&&identifiedPlatform.id)||null;
+  });
+
+  merged.version = CURRENT_DATA_VERSION;
   return merged;
 }
 
@@ -430,24 +465,35 @@ function platformFeeAmount(project) {
 
 function syncAutoExpenseForProject(project) {
   if (!project || !Array.isArray(state.expenses)) return;
-  const matches = state.expenses.filter((expense) => expense.autoProjectId === project.id);
+  let matches = state.expenses.filter((expense) => expense.autoProjectId === project.id);
   const platform=(state.settings.platforms||[]).find((item)=>item.id===project.platformId);
   if (!platform || !project.deliveredDate) {
     if (matches.length) state.expenses = state.expenses.filter((expense) => expense.autoProjectId !== project.id);
     return;
   }
+  if(matches.some((expense)=>expense.platformIdSnapshot!==project.platformId)){
+    state.expenses=state.expenses.filter((expense)=>expense.autoProjectId!==project.id);
+    matches=[];
+  }
+  const isNew=!matches.length;
   const expense = matches[0] || {
-    id: uuid(), receiptImageId: null, autoProjectId: project.id, createdAt: new Date().toISOString(),
+    id: uuid(), receiptImageId: null, autoProjectId: project.id,
+    platformFeeRateSnapshot:Number(platform.feeRate)||0,
+    platformNameSnapshot:platform.name||'', platformIdSnapshot:platform.id,
+    createdAt: new Date().toISOString(),
   };
+  const snapshotRate=Number(expense.platformFeeRateSnapshot);
+  const rate=Number.isFinite(snapshotRate)?snapshotRate:0;
+  const platformName=expense.platformNameSnapshot||'';
   Object.assign(expense, {
     date: project.deliveredDate,
     category: '支払手数料',
-    amount: platformFeeAmount(project),
-    memo: `${platform.name}手数料（${project.title}）`,
+    amount: Math.floor((Number(project.fee)||0)*rate),
+    memo: `${platformName}手数料（${project.title}）`,
     autoProjectId: project.id,
     updatedAt: new Date().toISOString(),
   });
-  if (!matches.length) state.expenses.push(expense);
+  if (isNew) state.expenses.push(expense);
   if (matches.length > 1) {
     const keepId = expense.id;
     state.expenses = state.expenses.filter((item) => item.autoProjectId !== project.id || item.id === keepId);
@@ -500,6 +546,33 @@ function ensureInvoiceIssuerSnapshot(invoice) {
   if (invoice && !invoice.issuerSnapshot && ['issued','paid'].includes(invoice.status)) invoice.issuerSnapshot = copyCurrentIssuer();
 }
 function issuerForDocument(documentData) { return (documentData && documentData.issuerSnapshot) || state.settings.issuer; }
+
+function setProjectPaymentStatus(project,status) {
+  if(!project)return;
+  const previousStatus=project.paymentStatus;
+  project.paymentStatus=status;
+  const linkedInvoices=state.invoices.filter((invoice)=>invoice.projectId===project.id);
+  if(status==='paid'){
+    if(!project.paidDate)project.paidDate=todayStr();
+    linkedInvoices.forEach((invoice)=>{invoice.status='paid';ensureInvoiceIssuerSnapshot(invoice);});
+  }else if(previousStatus==='paid'){
+    linkedInvoices.forEach((invoice)=>{invoice.status='issued';});
+  }
+}
+
+function deleteInvoiceRecord(invoiceId) {
+  const invoice=state.invoices.find((item)=>item.id===invoiceId);
+  if(!invoice)return false;
+  const linkedInvoices=invoice.projectId?state.invoices.filter((item)=>item.projectId===invoice.projectId):[];
+  const project=invoice.projectId?state.projects.find((item)=>item.id===invoice.projectId):null;
+  const shouldResetProject=!!project&&linkedInvoices.length===1&&(
+    (project.paymentStatus==='billed'&&invoice.status==='issued')||
+    (project.paymentStatus==='paid'&&invoice.status==='paid')
+  );
+  state.invoices=state.invoices.filter((item)=>item.id!==invoiceId);
+  if(shouldResetProject)project.paymentStatus='unbilled';
+  return true;
+}
 
 function withholdingAmount(project) {
   return project.hasWithholding ? calcWithholding(project.fee) : 0;
