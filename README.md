@@ -23,3 +23,4 @@
 
 - 正式ロゴは `assets/logo.png` に配置すると、プレースホルダーの `assets/logo.svg` から自動で切り替わります
 - PWAアイコンは `assets/icon-192.png` / `icon-512.png` / `apple-touch-icon.png` を差し替えられます（再生成は `python3 tools/create_pwa_icons.py`）
+- アイコン・OGP画像は `assets/` 内のPNGファイルを差し替えることで変更できます

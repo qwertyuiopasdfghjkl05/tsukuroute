@@ -35,6 +35,73 @@ const DEFAULT_PRICE_LIST = [
   ['オプション','衣装作り込み（胸上）',3000],['オプション','衣装作り込み（全身・アイドル衣装など）',5000],['オプション','衣装追加（ミニキャラ）',2000],['オプション','背景（色替え・ごく簡単）',1000],['オプション','背景（標準デザイン）',3000],['オプション','背景（装飾パネル・モチーフ多め）',5000],['オプション','小物（簡単）',1000],['オプション','小物（大きめ・詳細）',2000],['オプション','ロゴデザイン',3000],['オプション','文字入れ（シンプル）',1000],
 ].map((item)=>({ id:uuid(), category:item[0], name:item[1], price:item[2], type:'fixed' }));
 DEFAULT_PRICE_LIST.push({ id:uuid(), category:'特殊', name:'特急対応（10日以内）', type:'rate', rate:0.3, price:30 });
+const DEFAULT_MESSAGE_TEMPLATES = [
+  {category:'相談・見積',name:'初回挨拶＋ヒアリング',body:`初めまして！お世話になります。イラストレーターの{自分の名前}と申します。この度はお見積もりのご依頼をいただき誠にありがとうございます🙌
+
+お見積を出すにあたり何点か質問をさせていただきたく思います。
+
+①今回のイラストは5〜9等身のものか、ミニキャラ（2〜3等身）かをお選びください。また、描く範囲（腰から上or全身）もお選びください。
+
+②キャラに着せる衣装をご共有いただきたいです。また、小物の追加があればお伝えいただければと思います。
+
+③背景の有無をお教えください。ご希望がない場合は背景透過のpng形式でお渡しいたします。
+
+以上3点、ご確認のほどよろしくお願いいたします🙇‍♂️`},
+  {category:'相談・見積',name:'見積提案の送付連絡',body:`ご回答いただきありがとうございます！
+いただきました内容をもとにお見積を提案させていただきましたのでご確認ください。
+ご不明点などございましたらお気軽にご連絡をお願いいたします。
+何卒ご検討の程よろしくお願いいたします🙇‍♂️`},
+  {category:'受注・制作中',name:'ご購入お礼＋ラフ予定',body:`早速ご購入いただきありがとうございます！
+ラフは{ラフ予定日}までにお送りさせていただく予定です。少々お時間をいただきますが、今しばらくお待ちください。
+何かご不明点などございましたらお気軽にご連絡いただければと思います。
+この度はどうぞよろしくお願いいたします！`},
+  {category:'受注・制作中',name:'ラフ提出',body:`お世話になっております。大変お待たせいたしました！イラストのラフをお送りいたします。
+
+細かな点でも構いませんので、修正したい点がございましたらお気軽にご連絡ください！
+ご確認をお願いいたします🙇‍♂️`},
+  {category:'受注・制作中',name:'修正ラフ提出',body:`お世話になっております。修正したラフをお送りさせていただきます。
+追加で気になる点があれば遠慮なくお申し付けいただければと思います。
+お忙しい中恐縮ではございますが、ご確認をお願いいたします。`},
+  {category:'受注・制作中',name:'ラフOK・清書開始',body:`ご確認いただきありがとうございます！
+嬉しいお言葉も大変光栄です…！ありがとうございます😭✨
+
+それではこちらのラフを元に清書へはいらせていただきますね！完成までお時間をいただきますが、今しばらくお待ちいただけますと幸いです。
+引き続きよろしくお願いいたします！`},
+  {category:'納品',name:'完成・納品',body:`お世話になっております。大変お待たせいたしました。イラストが完成しましたのでお送りいたします。
+
+色味や簡単な修正でしたら現段階でも対応可能ですので、なにかお気付きの点がございましたらお気軽にご連絡ください！
+ご確認をお願いいたします。`},
+  {category:'納品',name:'納品後のお礼',body:`{クライアント名}様
+
+お世話になっております。
+このたびは「{案件名}」をご依頼いただき、誠にありがとうございました。
+
+またの機会がございましたら、ぜひお声がけいただけますと幸いです。
+今後ともどうぞよろしくお願いいたします🙇‍♂️`},
+  {category:'支払い',name:'入金のお願い（催促）',body:`{クライアント名}様
+
+お世話になっております。{自分の名前}です。
+
+先日「{案件名}」の件でお送りいたしました請求書（{請求書番号}）について、ご確認のご連絡でございます。
+お支払期日を{支払期日}とさせていただいておりますが、現時点でご入金の確認ができておりませんでしたので、念のためご連絡いたしました。
+
+行き違いですでにお手続きいただいておりましたら、何卒ご容赦ください。
+ご不明点などございましたら、お気軽にご連絡いただけますと幸いです。
+
+お忙しいところ恐れ入りますが、ご確認のほどよろしくお願いいたします。`},
+  {category:'その他',name:'お断り（スケジュール都合）',body:`お世話になっております。
+この度はご依頼のご相談をいただき、誠にありがとうございます。ご相談いただけたこと、大変光栄に思います！
+
+お受けしたい気持ちは山々なのですが、大変心苦しいことに、現在他の案件が立て込んでおり、ご希望の納期に間に合わせることが難しい状況です。
+
+せっかくご連絡いただいたにもかかわらず、ご期待に沿うことができず本当に申し訳ございません。
+また別の機会にタイミングが合いましたら、その際はぜひお手伝いさせていただきたく思います。
+
+何卒ご理解いただけますと幸いです。今後ともよろしくお願いいたします。`},
+  {category:'その他',name:'お詫び＋修正対応',body:`お世話になっております。こちらの不手際でお手数をおかけしてしまい大変申し訳ございません。
+早速ではございますが、修正したデータをお送りさせていただきますのでご確認をお願いいたします。
+よろしくお願いいたします。`},
+].map((item)=>Object.assign({id:uuid()},item));
 
 const EXPENSE_CATEGORIES = [
   'ソフトウェア・サブスク', '消耗品費', '通信費', '取材費', '資料・書籍費', '外注費', '支払手数料', '交際費', '旅費交通費', '雑費',
@@ -122,6 +189,7 @@ function formatMoney(n) {
   n = Math.round(n || 0);
   return '¥' + n.toLocaleString('ja-JP');
 }
+function renderMessageTemplate(body,vars) { return String(body||'').replace(/\{([^{}]+)\}/g,(match,key)=>Object.prototype.hasOwnProperty.call(vars||{},key)?String(vars[key]??''):match); }
 
 function floorYen(n) { return Math.floor(n); }
 
@@ -148,6 +216,7 @@ function defaultData() {
       platforms: [{ id:'platform-coconala', name:'ココナラ', feeRate:0.22 }],
       lastBackupAt: null,
       priceList: DEFAULT_PRICE_LIST.map((item)=>({ ...item })),
+      messageTemplates: DEFAULT_MESSAGE_TEMPLATES.map((item)=>({ ...item })),
       defaultTemplate: DEFAULT_TEMPLATE.map((t) => ({ ...t })),
       issuer: {
         name: '', address: '', tel: '', email: '', invoiceRegNo: '',
@@ -261,6 +330,7 @@ function migrateData(parsed) {
   merged.settings.defaultTemplate = deliveryLast(((parsed && parsed.settings) && Array.isArray(parsed.settings.defaultTemplate))
     ? parsed.settings.defaultTemplate : base.settings.defaultTemplate);
   merged.settings.priceList = ((parsed && parsed.settings) && Array.isArray(parsed.settings.priceList)) ? parsed.settings.priceList.map((item)=>Object.assign({ id:uuid(), category:'基本料金', name:'', price:0, type:'fixed' },item)) : base.settings.priceList;
+  merged.settings.messageTemplates = ((parsed && parsed.settings) && Array.isArray(parsed.settings.messageTemplates)) ? parsed.settings.messageTemplates.map((item)=>Object.assign({id:uuid(),category:'その他',name:'',body:''},item)) : base.settings.messageTemplates;
 
   // --- clients ---
   merged.clients = Array.isArray(parsed && parsed.clients) ? parsed.clients.map((c) => {const client=Object.assign({ id:uuid(),name:'',templateOverride:null },c);if(Array.isArray(client.templateOverride))client.templateOverride=deliveryLast(client.templateOverride);return client;}) : [];
@@ -691,6 +761,24 @@ function quoteSubtotal(q) { return (q.items||[]).reduce((sum,item)=>sum+(Number(
 function quoteRush(q) { return q.rushEnabled ? floorYen(quoteSubtotal(q)*(Number(q.rushRate)||0)) : 0; }
 function quoteTax(q) { return q.taxRate ? floorYen((quoteSubtotal(q)+quoteRush(q))*q.taxRate) : 0; }
 function quoteTotal(q) { return quoteSubtotal(q)+quoteRush(q)+quoteTax(q); }
+function calculateEasyEstimate(items,rushEnabled,rushRate,taxRate) {
+  const normalized=(items||[]).map((item)=>({priceId:item.priceId||'',name:String(item.name||''),qty:Math.max(0,Number(item.qty)||0),unit:item.unit||'式',unitPrice:Math.max(0,Number(item.unitPrice)||0)})).filter((item)=>item.name&&item.qty>0);
+  const subtotal=normalized.reduce((sum,item)=>sum+item.qty*item.unitPrice,0),rush=rushEnabled?floorYen(subtotal*Math.max(0,Number(rushRate)||0)):0,tax=taxRate?floorYen((subtotal+rush)*Math.max(0,Number(taxRate)||0)):0;
+  return {items:normalized,subtotal,rush,tax,total:subtotal+rush+tax};
+}
+function easyEstimateText(result,rushEnabled,rushRate,taxRate) {
+  const lines=['【お見積もり】',...(result.items||[]).map((item)=>`・${item.name} ×${item.qty} … ${formatMoney(item.qty*item.unitPrice)}`),'──────────',`小計　${formatMoney(result.subtotal)}`];
+  if(rushEnabled)lines.push(`特急対応（+${Math.round((Number(rushRate)||0)*100)}%）　${formatMoney(result.rush)}`);
+  if(taxRate)lines.push(`消費税（${Math.round((Number(taxRate)||0)*100)}%）　${formatMoney(result.tax)}`);
+  lines.push(`合計　${formatMoney(result.total)}`,'','※正式なお見積もりは別途お見積書にてご案内いたします。');
+  return lines.join('\n');
+}
+function projectRevenueStats(projects) {
+  const amounts=(projects||[]).filter((project)=>project.deliveredDate).map((project)=>Number(project.fee)).filter((amount)=>Number.isFinite(amount)&&amount>=0);
+  if(!amounts.length)return null;
+  const total=amounts.reduce((sum,amount)=>sum+amount,0);
+  return {count:amounts.length,average:Math.round(total/amounts.length),min:Math.min(...amounts),max:Math.max(...amounts)};
+}
 
 function invoiceSubtotal(inv) {
   return (inv.items || []).reduce((sum, it) => sum + (Number(it.qty) || 0) * (Number(it.unitPrice) || 0), 0);

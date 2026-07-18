@@ -1,7 +1,7 @@
-const CACHE_NAME = 'tsukuroute-v6-1';
+const CACHE_NAME = 'tsukuroute-v6-2';
 const APP_SHELL = [
   './', './index.html', './style.css', './data.js', './app.js', './manifest.json',
-  './assets/logo.svg', './assets/icon-192.png', './assets/icon-512.png', './assets/apple-touch-icon.png'
+  './assets/logo.svg', './assets/icon-192.png', './assets/icon-512.png', './assets/apple-touch-icon.png', './assets/ogp.png'
 ];
 
 self.addEventListener('install', (event) => {
